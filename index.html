@@ -37,7 +37,7 @@
 
         <a class="navbar-brand" href="#">
             <i class="bi bi-trophy-fill"></i>
-            Liga Mister
+            Fuera de Juego
         </a>
 
         <button
@@ -93,11 +93,11 @@
 
             <div>
                 <span class="hero-badge">
-                    <i class="bi bi-circle-fill"></i>
-                    Liga privada
+                    <span class="punto-en-vivo"></span>
+                    Liga Fuera de Juego
                 </span>
 
-                <h1>Gestor de Liga Mister</h1>
+                <h1>Mister Fuera de Juego</h1>
 
                 <p>
                     Consulta el estado de los pagos, las jornadas
@@ -128,11 +128,11 @@
 
         <div class="section-header">
             <div>
-                <span class="section-subtitle">INFORMACIÓN DE LA LIGA</span>
+                <span class="section-subtitle">Información de la liga</span>
                 <h2>Resumen general</h2>
             </div>
 
-            <span id="estadoConexion" class="connection-status">
+            <span id="estadoConexion" class="connection-status status-loading">
                 <i class="bi bi-arrow-repeat"></i>
                 Cargando...
             </span>
@@ -142,7 +142,7 @@
         <div class="row g-3">
 
             <!-- Dinero total -->
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-6 col-xl-3">
                 <div class="stat-card">
                     <div class="stat-icon">
                         <i class="bi bi-wallet2"></i>
@@ -157,7 +157,7 @@
 
 
             <!-- Dinero actual -->
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-6 col-xl-3">
                 <div class="stat-card">
                     <div class="stat-icon">
                         <i class="bi bi-cash-stack"></i>
@@ -172,7 +172,7 @@
 
 
             <!-- Dinero pendiente -->
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-6 col-xl-3">
                 <div class="stat-card">
                     <div class="stat-icon">
                         <i class="bi bi-exclamation-circle"></i>
@@ -187,7 +187,7 @@
 
 
             <!-- Jornadas -->
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-6 col-xl-3">
                 <div class="stat-card">
                     <div class="stat-icon">
                         <i class="bi bi-calendar-check"></i>
@@ -212,7 +212,7 @@
 
         <div class="section-header">
             <div>
-                <span class="section-subtitle">CONTROL DE PAGOS</span>
+                <span class="section-subtitle">Control de pagos</span>
                 <h2>Estado de los jugadores</h2>
             </div>
         </div>
@@ -270,23 +270,29 @@
         <div class="section-header">
 
             <div>
-                <span class="section-subtitle">HISTORIAL</span>
+                <span class="section-subtitle">Historial</span>
                 <h2>Pagos por jornada</h2>
             </div>
 
-            <div class="jornada-selector">
+        </div>
 
-                <label for="selectorJornada">
-                    Jornada
-                </label>
+        <!--
+            Calendario de jornadas en formato de fichas
+            deslizables, en lugar de un desplegable.
+        -->
+        <div class="jornada-selector-wrapper">
 
-                <select id="selectorJornada" class="form-select">
+            <div
+                id="selectorJornada"
+                class="jornada-pills"
+                role="tablist"
+                aria-label="Selector de jornada"
+            >
 
-                    <option value="">
-                        Seleccionar jornada
-                    </option>
-
-                </select>
+                <!--
+                    Las fichas de jornada se generan
+                    automáticamente mediante script.js.
+                -->
 
             </div>
 

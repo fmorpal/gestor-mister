@@ -4,11 +4,28 @@ CONFIGURACIÓN
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzte3EJt98RjQY_nvQLFyKyNy0jxoDc81rOCtesUT233-q5XoFnhLOd7-rhnnOvIVnc/exec";
 
+/*
+ * Carpeta donde se buscan las fotos de los jugadores.
+ * El archivo debe llamarse exactamente igual que el
+ * jugador en Google Sheets, por ejemplo:
+ *
+ *   jugadores/Juan Pérez.jpg
+ *   jugadores/Ana.png
+ *
+ * Si no existe ninguna foto para ese nombre (o falla la
+ * carga), se muestra automáticamente un círculo con sus
+ * iniciales en su lugar.
+ */
+
+const CARPETA_FOTOS_JUGADORES = "jugadores/";
+const EXTENSIONES_FOTO = ["jpg", "jpeg", "png", "webp"];
+
 /* =========================================================
 VARIABLES GLOBALES
 ========================================================= */
 
 let datosLiga = null;
+let jornadaActiva = null;
 
 /* =========================================================
 INICIO
@@ -106,14 +123,20 @@ const filaTotal = resumen.find(
 
 if (filaTotal) {
 
-    document.getElementById("dineroTotal").textContent =
-        limpiarCantidad(filaTotal[1]) + " €";
+    animarImporte(
+        "dineroTotal",
+        limpiarCantidad(filaTotal[1])
+    );
 
-    document.getElementById("dineroActual").textContent =
-        limpiarCantidad(filaTotal[2]) + " €";
+    animarImporte(
+        "dineroActual",
+        limpiarCantidad(filaTotal[2])
+    );
 
-    document.getElementById("dineroPendiente").textContent =
-        limpiarCantidad(filaTotal[3]) + " €";
+    animarImporte(
+        "dineroPendiente",
+        limpiarCantidad(filaTotal[3])
+    );
 }
 
 
@@ -143,8 +166,11 @@ jornadas.slice(1).forEach(fila => {
 
 });
 
-document.getElementById("jornadasCompletadas").textContent =
-    `${jornadasCompletadas} / 38`;
+animarContadorEntero(
+    "jornadasCompletadas",
+    jornadasCompletadas,
+    " / 38"
+);
  
 
 }
@@ -189,6 +215,8 @@ if (indiceCabeceras === -1) {
  * Los jugadores están después de las cabeceras
  * hasta encontrar una fila vacía o TOTAL.
  */
+
+let posicionFila = 0;
 
 for (
     let i = indiceCabeceras + 1;
@@ -245,19 +273,10 @@ for (
     }
 
 
-    /*
-     * Iniciales del jugador
-     */
-
-    const iniciales = obtenerIniciales(nombre);
-
-
     fila.innerHTML = `
         <td>
             <div class="player-name">
-                <span class="player-avatar">
-                    ${iniciales}
-                </span>
+                ${crearAvatarHTML(nombre)}
 
                 <span>
                     ${escaparHTML(nombre)}
@@ -312,6 +331,14 @@ for (
         </td>
     `;
 
+    /*
+     * Entrada escalonada: cada fila aparece
+     * un poco después que la anterior.
+     */
+
+    fila.style.animationDelay = `${posicionFila * 55}ms`;
+
+    posicionFila++;
 
     tabla.appendChild(fila);
 }
@@ -320,7 +347,7 @@ for (
 }
 
 /* =========================================================
-SELECTOR DE JORNADAS
+SELECTOR DE JORNADAS (FICHAS DESLIZABLES)
 ========================================================= */
 
 function cargarSelectorJornadas() {
@@ -330,11 +357,7 @@ const selector = document.getElementById("selectorJornada");
 
 const jornadas = datosLiga.jornadas || [];
 
-selector.innerHTML = `
-    <option value="">
-        Seleccionar jornada
-    </option>
-`;
+selector.innerHTML = "";
 
 
 jornadas.slice(1).forEach(fila => {
@@ -345,19 +368,77 @@ jornadas.slice(1).forEach(fila => {
         return;
     }
 
-    const opcion = document.createElement("option");
+    const ficha = document.createElement("button");
 
-    opcion.value = numero;
-    opcion.textContent = `Jornada ${numero}`;
+    ficha.type = "button";
+    ficha.className = "jornada-pill";
+    ficha.textContent = numero;
+    ficha.dataset.jornada = numero;
+    ficha.setAttribute("role", "tab");
+    ficha.setAttribute("aria-selected", "false");
 
-    selector.appendChild(opcion);
+    selector.appendChild(ficha);
 });
 
 
+/*
+ * Un único listener en el contenedor,
+ * en lugar de uno por ficha.
+ */
+
 selector.addEventListener(
-    "change",
-    mostrarJornada
+    "click",
+    evento => {
+
+        const ficha = evento.target.closest(".jornada-pill");
+
+        if (!ficha) {
+            return;
+        }
+
+        seleccionarJornada(ficha.dataset.jornada);
+    }
 );
+ 
+
+}
+
+/* =========================================================
+SELECCIONAR JORNADA
+========================================================= */
+
+function seleccionarJornada(numeroJornada) {
+
+ 
+jornadaActiva = numeroJornada;
+
+/*
+ * Marcamos visualmente la ficha activa.
+ */
+
+document
+    .querySelectorAll(".jornada-pill")
+    .forEach(ficha => {
+
+        const esActiva =
+            ficha.dataset.jornada === String(numeroJornada);
+
+        ficha.classList.toggle("activa", esActiva);
+        ficha.setAttribute(
+            "aria-selected",
+            esActiva ? "true" : "false"
+        );
+
+        if (esActiva) {
+            ficha.scrollIntoView({
+                behavior: "smooth",
+                inline: "center",
+                block: "nearest"
+            });
+        }
+    });
+
+mostrarJornada(numeroJornada);
  
 
 }
@@ -366,11 +447,9 @@ selector.addEventListener(
 MOSTRAR JORNADA
 ========================================================= */
 
-function mostrarJornada(evento) {
+function mostrarJornada(jornadaSeleccionada) {
 
  
-const jornadaSeleccionada = evento.target.value;
-
 const contenedor = document.getElementById("jornadaInfo");
 const detalle = document.getElementById("detalleJornada");
 const tabla = document.getElementById("tablaJornada");
@@ -418,7 +497,6 @@ const posiciones = buscarJornada(
     jornadaSeleccionada
 );
 
-
 if (!pagos) {
 
     detalle.classList.add("d-none");
@@ -454,6 +532,8 @@ tabla.innerHTML = "";
 /*
  * Creamos una fila por jugador.
  */
+
+let posicionFila = 0;
 
 for (let i = 1; i < pagos.length; i++) {
 
@@ -503,9 +583,7 @@ for (let i = 1; i < pagos.length; i++) {
         <td>
             <div class="player-name">
 
-                <span class="player-avatar">
-                    ${obtenerIniciales(nombre)}
-                </span>
+                ${crearAvatarHTML(nombre)}
 
                 <span>
                     ${escaparHTML(nombre)}
@@ -532,6 +610,10 @@ for (let i = 1; i < pagos.length; i++) {
             ${estadoHTML}
         </td>
     `;
+
+    fila.style.animationDelay = `${posicionFila * 55}ms`;
+
+    posicionFila++;
 
     tabla.appendChild(fila);
 }
@@ -564,7 +646,7 @@ contenedor.innerHTML = `
 
             <div>
                 <span class="section-subtitle">
-                    JORNADA
+                    Jornada
                 </span>
 
                 <h3 class="mb-0">
@@ -645,6 +727,14 @@ if (estado === "error") {
     icono = "bi-cloud-slash";
 }
 
+
+elemento.classList.remove(
+    "status-loading",
+    "status-online",
+    "status-error"
+);
+
+elemento.classList.add(`status-${estado}`);
 
 elemento.innerHTML = `
     <i class="bi ${icono}"></i>
@@ -780,6 +870,94 @@ return (
 }
 
 /* =========================================================
+FOTOS DE JUGADORES
+
+Genera la ruta a la foto de un jugador probando, por orden,
+las extensiones definidas en EXTENSIONES_FOTO.
+========================================================= */
+
+function rutaFotoJugador(nombre, indiceExtension) {
+
+ 
+const extension = EXTENSIONES_FOTO[indiceExtension];
+
+return (
+    CARPETA_FOTOS_JUGADORES +
+    encodeURIComponent(nombre) +
+    "." +
+    extension
+);
+ 
+
+}
+
+/* =========================================================
+AVATAR DE JUGADOR
+
+Construye el círculo con la foto del jugador. Si el
+navegador no consigue cargarla (porque no existe ese
+archivo, o no con esa extensión), gestionarErrorFoto()
+prueba la siguiente extensión y, si ninguna funciona,
+se queda con las iniciales.
+========================================================= */
+
+function crearAvatarHTML(nombre) {
+
+ 
+const iniciales = obtenerIniciales(nombre);
+const nombreEscapado = escaparHTML(nombre);
+
+return `
+    <span class="player-avatar">
+        ${iniciales}
+        <img
+            src="${rutaFotoJugador(nombre, 0)}"
+            alt=""
+            loading="lazy"
+            data-nombre="${nombreEscapado}"
+            data-intento="0"
+            onerror="gestionarErrorFoto(this)"
+        >
+    </span>
+`;
+ 
+
+}
+
+function gestionarErrorFoto(img) {
+
+ 
+const siguienteIntento =
+    parseInt(img.dataset.intento, 10) + 1;
+
+/*
+ * Todavía quedan extensiones por probar
+ * (por ejemplo, existe el .png pero no el .jpg).
+ */
+
+if (siguienteIntento < EXTENSIONES_FOTO.length) {
+
+    img.dataset.intento = siguienteIntento;
+
+    img.src = rutaFotoJugador(
+        img.dataset.nombre,
+        siguienteIntento
+    );
+
+    return;
+}
+
+/*
+ * No hay foto para este jugador: la ocultamos
+ * y se quedan visibles las iniciales de fondo.
+ */
+
+img.style.display = "none";
+ 
+
+}
+
+/* =========================================================
 SEGURIDAD HTML
 ========================================================= */
 
@@ -814,6 +992,106 @@ return ahora.toLocaleTimeString(
         minute: "2-digit"
     }
 );
+ 
+
+}
+
+/* =========================================================
+ANIMACIÓN DE MARCADOR (CONTEO DE IMPORTES)
+
+Anima un importe en euros desde su valor actual hasta el
+valor final, como si fuera encendiéndose en un marcador.
+========================================================= */
+
+function animarImporte(idElemento, valorFinalTexto) {
+
+ 
+const elemento = document.getElementById(idElemento);
+
+if (!elemento) {
+    return;
+}
+
+const valorFinal = parseFloat(
+    valorFinalTexto.replace(",", ".")
+) || 0;
+
+const valorInicial = 0;
+
+const duracion = 700;
+
+const inicio = performance.now();
+
+function paso(ahora) {
+
+    const progreso = Math.min(
+        (ahora - inicio) / duracion,
+        1
+    );
+
+    const facilitado = 1 - Math.pow(1 - progreso, 3);
+
+    const valorActual =
+        valorInicial +
+        (valorFinal - valorInicial) * facilitado;
+
+    elemento.textContent =
+        valorActual
+            .toFixed(2)
+            .replace(".", ",") + " €";
+
+    if (progreso < 1) {
+        requestAnimationFrame(paso);
+    }
+}
+
+requestAnimationFrame(paso);
+ 
+
+}
+
+/* =========================================================
+ANIMACIÓN DE MARCADOR (CONTEO DE ENTEROS)
+========================================================= */
+
+function animarContadorEntero(
+idElemento,
+valorFinal,
+sufijo
+) {
+
+ 
+const elemento = document.getElementById(idElemento);
+
+if (!elemento) {
+    return;
+}
+
+const duracion = 700;
+
+const inicio = performance.now();
+
+function paso(ahora) {
+
+    const progreso = Math.min(
+        (ahora - inicio) / duracion,
+        1
+    );
+
+    const facilitado = 1 - Math.pow(1 - progreso, 3);
+
+    const valorActual = Math.round(
+        valorFinal * facilitado
+    );
+
+    elemento.textContent = `${valorActual}${sufijo}`;
+
+    if (progreso < 1) {
+        requestAnimationFrame(paso);
+    }
+}
+
+requestAnimationFrame(paso);
  
 
 }

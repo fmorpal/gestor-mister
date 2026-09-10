@@ -1,35 +1,58 @@
 /* =========================================================
+FUENTES
+========================================================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap");
+
+/* =========================================================
 VARIABLES
+
+Paleta "Marcador nocturno": césped bajo focos de estadio.
 ========================================================= */
 
 :root {
---color-fondo: #f4f6f9;
+--color-fondo: #0d1712;
+--color-fondo-2: #142219;
+
 --color-superficie: #ffffff;
---color-superficie-2: #f8fafc;
+--color-superficie-2: #f4f7f3;
 
---color-principal: #172033;
---color-principal-2: #202b40;
+--color-principal: #0d3d24;
+--color-principal-2: #0a2e1c;
 
---color-texto: #172033;
---color-texto-secundario: #6b7280;
+--color-cesped: #2ba85a;
+--color-cesped-claro: #45c774;
+
+--color-oro: #e3b23c;
+--color-oro-fondo: #fbf1dc;
+
+--color-texto: #142219;
+--color-texto-secundario: #62726a;
 --color-texto-claro: #ffffff;
 
---color-borde: #e5e7eb;
+--color-borde: #e2e8e3;
+--color-borde-oscuro: rgba(255, 255, 255, 0.12);
 
---color-exito: #198754;
---color-exito-fondo: #eaf7ef;
+--color-exito: #2ba85a;
+--color-exito-fondo: #e9f7ee;
 
---color-pendiente: #dc3545;
---color-pendiente-fondo: #fdf0f1;
+--color-pendiente: #d1483f;
+--color-pendiente-fondo: #fbeae8;
 
---color-aviso: #f59e0b;
---color-aviso-fondo: #fff7e6;
+--color-aviso: #e3b23c;
+--color-aviso-fondo: #fbf1dc;
 
---sombra: 0 0.5rem 1.5rem rgba(15, 23, 42, 0.07);
---sombra-hover: 0 0.75rem 2rem rgba(15, 23, 42, 0.12);
+--fuente-titular: "Oswald", "Segoe UI", sans-serif;
+--fuente-cuerpo: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+--fuente-marcador: "JetBrains Mono", "Courier New", monospace;
+
+--sombra: 0 0.5rem 1.5rem rgba(10, 25, 15, 0.08);
+--sombra-hover: 0 0.9rem 2rem rgba(10, 25, 15, 0.14);
 
 --radio: 1rem;
 --radio-pequeno: 0.65rem;
+
+--velocidad: 0.2s;
 }
 
 /* =========================================================
@@ -37,24 +60,34 @@ GENERAL
 ========================================================= */
 
 * {
-  box-sizing: border-box;
-  }
+box-sizing: border-box;
+}
 
 html {
 scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 body {
 margin: 0;
-background: var(--color-fondo);
+background: var(--color-superficie-2);
 color: var(--color-texto);
-font-family:
-Inter,
-system-ui,
--apple-system,
-BlinkMacSystemFont,
-"Segoe UI",
-sans-serif;
+font-family: var(--fuente-cuerpo);
 line-height: 1.5;
 }
 
@@ -66,37 +99,51 @@ section {
 scroll-margin-top: 5rem;
 }
 
+h1,
+h2,
+h3 {
+font-family: var(--fuente-titular);
+}
+
+:focus-visible {
+outline: 2px solid var(--color-cesped);
+outline-offset: 2px;
+}
+
 /* =========================================================
 NAVBAR
 ========================================================= */
 
 .navbar {
-background: var(--color-principal);
-min-height: 4.5rem;
-box-shadow: 0 0.25rem 1rem rgba(15, 23, 42, 0.15);
+background: var(--color-principal-2);
+min-height: 4.2rem;
+box-shadow: 0 0.25rem 1rem rgba(5, 15, 9, 0.35);
 }
 
 .navbar-brand {
 display: flex;
 align-items: center;
-gap: 0.65rem;
+gap: 0.6rem;
 
  
 color: #ffffff !important;
 
-font-size: 1.2rem;
-font-weight: 700;
-letter-spacing: -0.02em;
+font-family: var(--fuente-titular);
+font-size: 1.25rem;
+font-weight: 600;
+letter-spacing: 0.01em;
+text-transform: uppercase;
  
 
 }
 
 .navbar-brand i {
-font-size: 1.35rem;
+color: var(--color-oro);
+font-size: 1.3rem;
 }
 
 .navbar-nav {
-gap: 0.35rem;
+gap: 0.3rem;
 }
 
 .nav-link {
@@ -105,26 +152,32 @@ align-items: center;
 gap: 0.4rem;
 
  
-color: rgba(255, 255, 255, 0.72) !important;
+color: rgba(255, 255, 255, 0.68) !important;
 
-padding: 0.55rem 0.9rem !important;
+padding: 0.6rem 0.95rem !important;
 
 border-radius: var(--radio-pequeno);
+border-bottom: 2px solid transparent;
 
-font-size: 0.92rem;
+font-size: 0.9rem;
 font-weight: 500;
 
 transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+    background-color var(--velocidad) ease,
+    color var(--velocidad) ease,
+    border-color var(--velocidad) ease;
  
 
 }
 
-.nav-link:hover,
-.nav-link.active {
+.nav-link:hover {
 color: #ffffff !important;
-background: rgba(255, 255, 255, 0.1);
+background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-link.active {
+border-bottom-color: var(--color-cesped-claro);
+color: #ffffff !important;
 }
 
 .navbar-toggler {
@@ -140,27 +193,52 @@ HERO
 ========================================================= */
 
 .hero {
-background:
-linear-gradient(
-135deg,
-var(--color-principal),
-var(--color-principal-2)
-);
+position: relative;
+overflow: hidden;
 
  
+background:
+    radial-gradient(
+        circle at 15% -10%,
+        rgba(255, 255, 255, 0.07),
+        transparent 55%
+    ),
+    linear-gradient(
+        160deg,
+        var(--color-principal-2),
+        var(--color-fondo) 85%
+    );
+
 color: var(--color-texto-claro);
 
-padding: 3.5rem 0;
+padding: 3rem 0;
+ 
+
+}
+
+.hero::after {
+content: "";
+position: absolute;
+inset: auto -20% -60% auto;
+
+ 
+width: 26rem;
+height: 26rem;
+
+border: 1px solid rgba(255, 255, 255, 0.05);
+border-radius: 50%;
  
 
 }
 
 .hero-content {
+position: relative;
+
+ 
 display: flex;
 align-items: center;
 justify-content: space-between;
 
- 
 gap: 2rem;
  
 
@@ -169,53 +247,64 @@ gap: 2rem;
 .hero-badge {
 display: inline-flex;
 align-items: center;
-gap: 0.45rem;
+gap: 0.5rem;
 
  
 margin-bottom: 0.9rem;
-padding: 0.4rem 0.75rem;
+padding: 0.4rem 0.8rem;
 
 border: 1px solid rgba(255, 255, 255, 0.14);
 border-radius: 2rem;
 
-background: rgba(255, 255, 255, 0.08);
+background: rgba(255, 255, 255, 0.06);
 
-color: rgba(255, 255, 255, 0.8);
+color: rgba(255, 255, 255, 0.82);
 
-font-size: 0.78rem;
+font-size: 0.76rem;
 font-weight: 600;
-text-transform: uppercase;
-letter-spacing: 0.06em;
+letter-spacing: 0.03em;
  
 
 }
 
-.hero-badge i {
-color: #63d391;
-font-size: 0.45rem;
+.hero-badge .punto-en-vivo {
+display: inline-block;
+
+ 
+width: 0.5rem;
+height: 0.5rem;
+
+border-radius: 50%;
+
+background: var(--color-cesped-claro);
+
+animation: foco-pulso 2s ease-in-out infinite;
+ 
+
 }
 
 .hero h1 {
-margin: 0 0 0.65rem;
+margin: 0 0 0.6rem;
 
  
-font-size: clamp(2rem, 4vw, 3.2rem);
-font-weight: 800;
+font-size: clamp(1.9rem, 5vw, 3rem);
+font-weight: 600;
 
-letter-spacing: -0.04em;
+letter-spacing: 0.005em;
+text-transform: uppercase;
  
 
 }
 
 .hero p {
-max-width: 40rem;
+max-width: 34rem;
 
  
 margin: 0;
 
-color: rgba(255, 255, 255, 0.68);
+color: rgba(255, 255, 255, 0.65);
 
-font-size: 1.05rem;
+font-size: 1rem;
  
 
 }
@@ -226,17 +315,23 @@ align-items: center;
 justify-content: center;
 
  
-width: 6.5rem;
-height: 6.5rem;
+position: relative;
+
+width: 5.5rem;
+height: 5.5rem;
 
 flex-shrink: 0;
 
-border: 1px solid rgba(255, 255, 255, 0.12);
-border-radius: 1.5rem;
+border: 1px solid rgba(227, 178, 60, 0.35);
+border-radius: 50%;
 
-background: rgba(255, 255, 255, 0.07);
+background: rgba(227, 178, 60, 0.08);
 
-font-size: 2.5rem;
+color: var(--color-oro);
+
+font-size: 2.1rem;
+
+animation: balon-flota 5s ease-in-out infinite;
  
 
 }
@@ -266,9 +361,9 @@ margin-bottom: 0.3rem;
 
 color: var(--color-texto-secundario);
 
-font-size: 0.72rem;
-font-weight: 700;
-letter-spacing: 0.09em;
+font-size: 0.75rem;
+font-weight: 600;
+letter-spacing: 0.03em;
  
 
 }
@@ -279,10 +374,11 @@ margin: 0;
  
 color: var(--color-principal);
 
-font-size: 1.45rem;
-font-weight: 750;
+font-size: 1.4rem;
+font-weight: 600;
 
-letter-spacing: -0.025em;
+letter-spacing: 0.01em;
+text-transform: uppercase;
  
 
 }
@@ -309,12 +405,30 @@ box-shadow: 0 0.2rem 0.75rem rgba(15, 23, 42, 0.05);
 
 font-size: 0.78rem;
 font-weight: 600;
+
+transition: color var(--velocidad) ease;
  
 
 }
 
 .connection-status i {
 font-size: 0.85rem;
+}
+
+.connection-status.status-online {
+color: var(--color-exito);
+}
+
+.connection-status.status-online i {
+animation: latido 2.4s ease-in-out infinite;
+}
+
+.connection-status.status-error {
+color: var(--color-pendiente);
+}
+
+.connection-status.status-loading i {
+animation: girar 1s linear infinite;
 }
 
 /* =========================================================
@@ -330,7 +444,7 @@ gap: 1rem;
 
 height: 100%;
 
-padding: 1.25rem;
+padding: 1.15rem;
 
 border: 1px solid var(--color-borde);
 border-radius: var(--radio);
@@ -339,16 +453,27 @@ background: var(--color-superficie);
 
 box-shadow: var(--sombra);
 
+opacity: 0;
+
+animation: aparecer 0.5s ease forwards;
+
 transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+    transform var(--velocidad) ease,
+    box-shadow var(--velocidad) ease;
  
 
 }
 
-.stat-card:hover {
-transform: translateY(-0.15rem);
-box-shadow: var(--sombra-hover);
+.stat-card:active {
+transform: scale(0.98);
+}
+
+@media (hover: hover) {
+
+    .stat-card:hover {
+        transform: translateY(-0.15rem);
+        box-shadow: var(--sombra-hover);
+    }
 }
 
 .stat-icon {
@@ -357,18 +482,18 @@ align-items: center;
 justify-content: center;
 
  
-width: 3rem;
-height: 3rem;
+width: 2.9rem;
+height: 2.9rem;
 
 flex-shrink: 0;
 
 border-radius: 0.8rem;
 
-background: #eef1f5;
+background: var(--color-principal);
 
-color: var(--color-principal);
+color: var(--color-oro);
 
-font-size: 1.2rem;
+font-size: 1.15rem;
  
 
 }
@@ -392,10 +517,10 @@ display: block;
  
 color: var(--color-principal);
 
-font-size: 1.35rem;
-font-weight: 750;
-
-letter-spacing: -0.02em;
+font-family: var(--fuente-marcador);
+font-size: 1.3rem;
+font-weight: 700;
+font-variant-numeric: tabular-nums;
  
 
 }
@@ -425,7 +550,7 @@ margin: 0;
 
 .players-table thead,
 .jornada-table thead {
-background: var(--color-principal);
+background: var(--color-principal-2);
 }
 
 .players-table thead th,
@@ -435,13 +560,13 @@ padding: 1rem;
  
 border: 0;
 
-color: rgba(255, 255, 255, 0.9);
+color: rgba(255, 255, 255, 0.88);
 
-font-size: 0.76rem;
-font-weight: 700;
+font-size: 0.74rem;
+font-weight: 600;
 
 text-transform: uppercase;
-letter-spacing: 0.04em;
+letter-spacing: 0.03em;
 
 white-space: nowrap;
  
@@ -466,12 +591,21 @@ vertical-align: middle;
 
 .players-table tbody tr,
 .jornada-table tbody tr {
-transition: background-color 0.15s ease;
+opacity: 0;
+
+transform: translateY(0.4rem);
+
+animation: aparecer-fila 0.4s ease forwards;
+
+transition: background-color var(--velocidad) ease;
 }
 
-.players-table tbody tr:hover,
-.jornada-table tbody tr:hover {
-background: var(--color-superficie-2);
+@media (hover: hover) {
+
+    .players-table tbody tr:hover,
+    .jornada-table tbody tr:hover {
+        background: var(--color-superficie-2);
+    }
 }
 
 .players-table tbody tr:last-child td,
@@ -489,30 +623,56 @@ align-items: center;
 gap: 0.7rem;
 
  
-font-weight: 700;
+font-weight: 600;
  
 
 }
 
 .player-avatar {
+position: relative;
+
+ 
 display: flex;
 align-items: center;
 justify-content: center;
 
- 
 width: 2.2rem;
 height: 2.2rem;
 
 flex-shrink: 0;
+overflow: hidden;
 
 border-radius: 50%;
+border: 2px solid var(--color-oro);
 
 background: var(--color-principal);
 
 color: #ffffff;
 
-font-size: 0.75rem;
+font-family: var(--fuente-marcador);
+font-size: 0.72rem;
 font-weight: 700;
+ 
+
+}
+
+/*
+ * Foto del jugador: si existe un archivo en /jugadores/
+ * con su nombre, se recorta en círculo encima de las
+ * iniciales. Si no existe, gestionarErrorFoto() (en
+ * script.js) la oculta y se quedan visibles las iniciales.
+ */
+
+.player-avatar img {
+position: absolute;
+inset: 0;
+
+ 
+width: 100%;
+height: 100%;
+
+object-fit: cover;
+object-position: center top;
  
 
 }
@@ -551,7 +711,7 @@ color: var(--color-pendiente);
 
 .status-badge.partial {
 background: var(--color-aviso-fondo);
-color: #a16207;
+color: #93711c;
 }
 
 /* =========================================================
@@ -559,7 +719,9 @@ CANTIDADES
 ========================================================= */
 
 .amount {
+font-family: var(--fuente-marcador);
 font-weight: 700;
+font-variant-numeric: tabular-nums;
 white-space: nowrap;
 }
 
@@ -576,55 +738,81 @@ color: var(--color-texto);
 }
 
 /* =========================================================
-JORNADAS
+JORNADAS - TIRA DE FICHAS DESLIZABLE
+
+En lugar de un <select>, el calendario de jornadas se
+presenta como fichas horizontales deslizables, al estilo
+de un calendario de partidos.
 ========================================================= */
 
-.jornada-selector {
-display: flex;
-align-items: center;
+.jornada-selector-wrapper {
+position: relative;
 
  
-gap: 0.65rem;
+margin: -0.2rem -1rem 0;
  
 
 }
 
-.jornada-selector label {
+.jornada-pills {
+display: flex;
+gap: 0.5rem;
+
+ 
+padding: 0.2rem 1rem 0.6rem;
+
+overflow-x: auto;
+
+scrollbar-width: none;
+scroll-snap-type: x proximity;
+-webkit-overflow-scrolling: touch;
+ 
+
+}
+
+.jornada-pills::-webkit-scrollbar {
+display: none;
+}
+
+.jornada-pill {
+flex-shrink: 0;
+
+ 
+scroll-snap-align: start;
+
+padding: 0.55rem 1.05rem;
+
+border: 1px solid var(--color-borde);
+border-radius: 2rem;
+
+background: var(--color-superficie);
+cursor: pointer;
+
 color: var(--color-texto-secundario);
 
- 
-font-size: 0.8rem;
-font-weight: 600;
-
-white-space: nowrap;
- 
-
-}
-
-.jornada-selector .form-select {
-min-width: 10rem;
-
- 
-border-color: var(--color-borde);
-border-radius: var(--radio-pequeno);
-
-background-color: var(--color-superficie);
-
-color: var(--color-texto);
-
+font-family: var(--fuente-marcador);
 font-size: 0.85rem;
-font-weight: 600;
+font-weight: 700;
+
+transition:
+    background-color var(--velocidad) ease,
+    border-color var(--velocidad) ease,
+    color var(--velocidad) ease,
+    transform 0.1s ease;
  
 
 }
 
-.jornada-selector .form-select:focus {
-border-color: #9ca3af;
+.jornada-pill:active {
+transform: scale(0.95);
+}
 
- 
-box-shadow: 0 0 0 0.2rem rgba(23, 32, 51, 0.08);
- 
+.jornada-pill.activa {
+border-color: var(--color-principal);
 
+background: var(--color-principal);
+
+color: var(--color-oro);
 }
 
 /* =========================================================
@@ -632,7 +820,7 @@ INFORMACIÓN DE JORNADA
 ========================================================= */
 
 .jornada-info {
-min-height: 10rem;
+min-height: 9rem;
 
  
 border: 1px solid var(--color-borde);
@@ -641,6 +829,8 @@ border-radius: var(--radio);
 background: var(--color-superficie);
 
 box-shadow: var(--sombra);
+
+animation: aparecer 0.35s ease;
  
 
 }
@@ -652,7 +842,7 @@ align-items: center;
 justify-content: center;
 
  
-min-height: 10rem;
+min-height: 9rem;
 
 padding: 2rem;
 
@@ -679,13 +869,14 @@ margin: 0 0 0.35rem;
 color: var(--color-principal);
 
 font-size: 1rem;
-font-weight: 700;
+font-weight: 600;
+text-transform: uppercase;
  
 
 }
 
 .empty-state p {
-max-width: 30rem;
+max-width: 28rem;
 
  
 margin: 0;
@@ -772,9 +963,9 @@ footer {
 margin-top: 3rem;
 
  
-background: var(--color-principal);
+background: var(--color-principal-2);
 
-color: rgba(255, 255, 255, 0.6);
+color: rgba(255, 255, 255, 0.55);
  
 
 }
@@ -802,9 +993,71 @@ gap: 0.45rem;
  
 color: rgba(255, 255, 255, 0.9);
 
-font-weight: 700;
+font-family: var(--fuente-titular);
+font-weight: 600;
+letter-spacing: 0.01em;
+text-transform: uppercase;
  
 
+}
+
+/* =========================================================
+ANIMACIONES
+========================================================= */
+
+@keyframes foco-pulso {
+
+0%,
+100% {
+    box-shadow: 0 0 0 0 rgba(69, 199, 116, 0.55);
+}
+
+50% {
+    box-shadow: 0 0 0 0.35rem rgba(69, 199, 116, 0);
+}
+}
+
+@keyframes balon-flota {
+
+0%,
+100% {
+    transform: translateY(0) rotate(0deg);
+}
+
+50% {
+    transform: translateY(-0.4rem) rotate(8deg);
+}
+}
+
+@keyframes latido {
+
+0%,
+100% {
+    transform: scale(1);
+}
+
+50% {
+    transform: scale(1.2);
+}
+}
+
+@keyframes aparecer {
+from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+}
+
+to {
+    opacity: 1;
+    transform: translateY(0);
+}
+}
+
+@keyframes aparecer-fila {
+to {
+    opacity: 1;
+    transform: translateY(0);
+}
 }
 
 /* =========================================================
@@ -815,25 +1068,17 @@ RESPONSIVE - TABLET
 
  
 .hero {
-    padding: 3rem 0;
+    padding: 2.6rem 0;
 }
 
 .hero-icon {
-    width: 5.5rem;
-    height: 5.5rem;
+    width: 4.8rem;
+    height: 4.8rem;
 }
 
 .section-header {
     align-items: flex-start;
     flex-direction: column;
-}
-
-.jornada-selector {
-    width: 100%;
-}
-
-.jornada-selector .form-select {
-    width: 100%;
 }
  
 
@@ -847,7 +1092,7 @@ RESPONSIVE - MÓVIL
 
  
 .hero {
-    padding: 2.5rem 0;
+    padding: 2.2rem 0;
 }
 
 .hero-content {
@@ -859,11 +1104,11 @@ RESPONSIVE - MÓVIL
 }
 
 .hero h1 {
-    font-size: 2rem;
+    font-size: 1.7rem;
 }
 
 .hero p {
-    font-size: 0.92rem;
+    font-size: 0.9rem;
 }
 
 .section-header {
@@ -871,7 +1116,7 @@ RESPONSIVE - MÓVIL
 }
 
 .section-header h2 {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
 }
 
 .connection-status {
@@ -879,11 +1124,18 @@ RESPONSIVE - MÓVIL
 }
 
 .stat-card {
-    padding: 1rem;
+    padding: 0.95rem;
+}
+
+.stat-icon {
+    width: 2.6rem;
+    height: 2.6rem;
+
+    font-size: 1.05rem;
 }
 
 .stat-card strong {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
 }
 
 .players-table thead th,
@@ -914,26 +1166,19 @@ main.container {
 }
 
 .hero h1 {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
 }
 
 .stat-card {
-    min-height: 5rem;
-}
-
-.jornada-selector {
-    align-items: flex-start;
-    flex-direction: column;
-}
-
-.jornada-selector label {
-    margin-bottom: -0.25rem;
+    min-height: 4.6rem;
 }
 
 .last-update {
     align-items: flex-start;
     flex-wrap: wrap;
 }
+ 
+
 }
 
 /* =========================================================
@@ -973,6 +1218,7 @@ main.container {
         padding: 0.9rem;
 
         border: 1px solid var(--color-borde);
+        border-left: 3px solid var(--color-cesped);
         border-radius: var(--radio);
 
         background: var(--color-superficie);
@@ -980,14 +1226,12 @@ main.container {
         box-shadow: var(--sombra);
 
         transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease;
+            transform var(--velocidad) ease,
+            box-shadow var(--velocidad) ease;
     }
 
-    .players-table tbody tr:hover {
-        background: var(--color-superficie);
-        transform: none;
-        box-shadow: var(--sombra-hover);
+    .players-table tbody tr:active {
+        transform: scale(0.99);
     }
 
     .players-table tbody td {
@@ -1072,20 +1316,12 @@ main.container {
     .players-table tbody td::before {
         color: var(--color-texto-secundario);
 
+        font-family: var(--fuente-cuerpo);
         font-size: 0.76rem;
         font-weight: 600;
 
         text-align: left;
     }
-
-    /* -----------------------------------------------------
-       ESTADO
-    ----------------------------------------------------- */
-
-    .players-table tbody td:last-child {
-        border-bottom: 0;
-    }
-
 
     /* =====================================================
        TABLA DE JORNADA
@@ -1118,15 +1354,12 @@ main.container {
         padding: 0.9rem;
 
         border: 1px solid var(--color-borde);
+        border-left: 3px solid var(--color-oro);
         border-radius: var(--radio);
 
         background: var(--color-superficie);
 
         box-shadow: var(--sombra);
-    }
-
-    .jornada-table tbody tr:hover {
-        background: var(--color-superficie);
     }
 
     .jornada-table tbody td {
@@ -1169,35 +1402,33 @@ main.container {
 
     /* -----------------------------------------------------
        ETIQUETAS TABLA JORNADA
-       
-       Si tu tabla tiene estas columnas:
-       Jugador / Cantidad / Pagado / Posición / Estado
     ----------------------------------------------------- */
-.jornada-table tbody td:nth-child(2)::before {
-    content: "Posición";
-}
 
-.jornada-table tbody td:nth-child(3)::before {
-    content: "Cantidad";
-}
+    .jornada-table tbody td:nth-child(2)::before {
+        content: "Posición";
+    }
 
-.jornada-table tbody td:nth-child(4)::before {
-    content: "Pagado";
-}
+    .jornada-table tbody td:nth-child(3)::before {
+        content: "Cantidad";
+    }
 
-.jornada-table tbody td:nth-child(5)::before {
-    content: "Estado";
-}
+    .jornada-table tbody td:nth-child(4)::before {
+        content: "Pagado";
+    }
+
+    .jornada-table tbody td:nth-child(5)::before {
+        content: "Estado";
+    }
 
     .jornada-table tbody td::before {
         color: var(--color-texto-secundario);
 
+        font-family: var(--fuente-cuerpo);
         font-size: 0.76rem;
         font-weight: 600;
         margin-right: 1rem;
         text-align: left;
     }
-
 
     /* =====================================================
        CONTENEDORES
@@ -1210,13 +1441,7 @@ main.container {
         background: transparent;
         box-shadow: none;
     }
-
-    .players-table-wrapper,
-    .jornada-table-wrapper {
-        overflow: visible;
-    }
 }
-
 
 /* =========================================================
    MÓVILES MUY PEQUEÑOS
@@ -1244,4 +1469,3 @@ main.container {
         height: 2.1rem;
     }
 }
-
