@@ -1469,3 +1469,194 @@ main.container {
         height: 2.1rem;
     }
 }
+
+/* =========================================================
+   ORDENACIÓN - ESTADO DE JUGADORES
+   ========================================================= */
+
+.control-orden-jugadores {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    margin: 0 0 1rem;
+    padding: 0.15rem 0;
+}
+
+
+/* ---------------------------------------------------------
+   ETIQUETA
+--------------------------------------------------------- */
+
+.control-orden-jugadores label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    margin: 0;
+
+    color: var(--color-texto-secundario);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.control-orden-jugadores label i {
+    color: var(--color-cesped);
+    font-size: 0.9rem;
+}
+
+
+/* ---------------------------------------------------------
+   SELECT
+--------------------------------------------------------- */
+
+.control-orden-jugadores .form-select {
+    width: auto;
+    min-width: 10.5rem;
+    min-height: 2.5rem;
+
+    padding: 0.55rem 2.35rem 0.55rem 0.85rem;
+
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-pequeno);
+
+    background-color: var(--color-superficie);
+    color: var(--color-principal);
+
+    font-family: var(--fuente-cuerpo);
+    font-size: 0.82rem;
+    font-weight: 600;
+
+    box-shadow: 0 0.2rem 0.65rem rgba(10, 25, 15, 0.05);
+
+    cursor: pointer;
+
+    transition:
+        border-color var(--velocidad) ease,
+        box-shadow var(--velocidad) ease,
+        background-color var(--velocidad) ease;
+}
+
+.control-orden-jugadores .form-select:hover {
+    border-color: rgba(13, 61, 36, 0.35);
+    background-color: var(--color-superficie-2);
+}
+
+.control-orden-jugadores .form-select:focus {
+    border-color: var(--color-cesped);
+
+    box-shadow:
+        0 0 0 0.2rem rgba(43, 168, 90, 0.12);
+
+    outline: none;
+}
+
+
+/* ---------------------------------------------------------
+   BOTÓN ASCENDENTE / DESCENDENTE
+--------------------------------------------------------- */
+
+#direccionOrdenJugadores {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+
+    padding: 0;
+
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-pequeno);
+
+    background: var(--color-superficie);
+    color: var(--color-principal);
+
+    font-size: 1rem;
+    font-weight: 700;
+
+    box-shadow:
+        0 0.2rem 0.65rem rgba(10, 25, 15, 0.05);
+
+    cursor: pointer;
+
+    transition:
+        background-color var(--velocidad) ease,
+        border-color var(--velocidad) ease,
+        color var(--velocidad) ease,
+        transform 0.1s ease,
+        box-shadow var(--velocidad) ease;
+}
+
+#direccionOrdenJugadores:hover {
+    border-color: var(--color-principal);
+    background: var(--color-principal);
+    color: var(--color-oro);
+
+    box-shadow:
+        0 0.35rem 0.9rem rgba(10, 25, 15, 0.12);
+}
+
+#direccionOrdenJugadores:active {
+    transform: scale(0.94);
+}
+
+#direccionOrdenJugadores:focus-visible {
+    outline: 2px solid var(--color-cesped);
+    outline-offset: 2px;
+}
+
+
+/* =========================================================
+   RESPONSIVE - ORDENACIÓN
+========================================================= */
+
+@media (max-width: 767.98px) {
+
+    .control-orden-jugadores {
+        align-items: stretch;
+        justify-content: stretch;
+        gap: 0.55rem;
+
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .control-orden-jugadores label {
+        justify-content: flex-start;
+    }
+
+    .control-orden-jugadores .form-select {
+        flex: 1;
+        width: 100%;
+        min-width: 0;
+    }
+
+    #direccionOrdenJugadores {
+        width: 2.5rem;
+        min-width: 2.5rem;
+    }
+}
+
+
+/* =========================================================
+   MÓVILES PEQUEÑOS
+========================================================= */
+
+@media (max-width: 400px) {
+
+    .control-orden-jugadores {
+        gap: 0.45rem;
+    }
+
+    .control-orden-jugadores label {
+        font-size: 0.74rem;
+    }
+
+    .control-orden-jugadores .form-select {
+        font-size: 0.78rem;
+    }
+}
