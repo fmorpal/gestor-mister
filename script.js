@@ -1,1355 +1,585 @@
 /* =========================================================
-   CONFIGURACIÓN
+   FUERA DE JUEGO — Lógica de la aplicación
+
+   Los datos vienen de una hoja de Google publicada como
+   API mediante Google Apps Script.
 ========================================================= */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzte3EJt98RjQY_nvQLFyKyNy0jxoDc81rOCtesUT233-q5XoFnhLOd7-rhnnOvIVnc/exec";
+"use strict";
+
+/* ---------------------------------------------------------
+   CONFIGURACIÓN
+--------------------------------------------------------- */
+
+const API_URL =
+    "https://script.google.com/macros/s/AKfycbzte3EJt98RjQY_nvQLFyKyNy0jxoDc81rOCtesUT233-q5XoFnhLOd7-rhnnOvIVnc/exec";
 
 /*
- * Carpeta donde se buscan las fotos de los jugadores.
+ * Fotos de los jugadores.
  *
- * El archivo debe llamarse exactamente igual que el
- * jugador en Google Sheets, por ejemplo:
+ * El archivo debe llamarse igual que el jugador en la hoja:
+ *   jugadores/Juan Pérez.jpg
  *
- * jugadores/Juan Pérez.jpg
- * jugadores/Ana.png
- *
- * Si no existe ninguna foto para ese nombre (o falla la
- * carga), se muestra automáticamente un círculo con sus
- * iniciales en su lugar.
+ * Si no existe, se muestran sus iniciales.
  */
-const CARPETA_FOTOS_JUGADORES = "jugadores/";
+const CARPETA_FOTOS = "jugadores/";
 const EXTENSIONES_FOTO = ["jpg", "jpeg", "png", "webp"];
 
+const TOTAL_JORNADAS = 38;
 
-/* =========================================================
-   VARIABLES GLOBALES
-========================================================= */
+/* Minutos entre actualizaciones automáticas */
+const MINUTOS_REFRESCO = 5;
 
-let datosLiga = null;
+/* Clave del guardado local */
+const CLAVE_CACHE = "fdj-datos-v2";
 
-let jornadaActiva = null;
 
-let ordenJugadores = {
-    campo: "totalPagado",
-    direccion: "desc"
+/* ---------------------------------------------------------
+   ESTADO
+--------------------------------------------------------- */
+
+const estado = {
+    datos: null,
+    jugadores: [],
+    jornadaActiva: null,
+    orden: "pendiente",
+    busqueda: "",
+    cargando: false
 };
 
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
-/* =========================================================
-   INICIO
-========================================================= */
+
+/* ---------------------------------------------------------
+   ARRANQUE
+--------------------------------------------------------- */
 
 document.addEventListener("DOMContentLoaded", () => {
 
+    montarNavegacion();
+    montarBuscador();
+    montarOrden();
+    montarFicha();
+    montarTirarParaActualizar();
+
+    $("#botonRecargar").addEventListener("click", () => cargarDatos(true));
+
+    /* Pintamos primero lo último guardado: la app abre al instante. */
+    const guardado = leerCache();
+
+    if (guardado) {
+        estado.datos = guardado.datos;
+        pintarTodo();
+        mostrarUltimaActualizacion(guardado.fecha, true);
+    }
+
     cargarDatos();
+
+    /* Al volver a la app desde segundo plano, refrescamos. */
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            cargarDatos();
+        }
+    });
+
+    window.addEventListener("online", () => cargarDatos(true));
+
+    setInterval(() => cargarDatos(), MINUTOS_REFRESCO * 60 * 1000);
+
+    registrarServiceWorker();
 
 });
 
 
 /* =========================================================
-   CARGAR DATOS DE GOOGLE SHEETS
+   DATOS
 ========================================================= */
 
-/*
- * Realiza hasta 3 intentos para conectar con la API.
- *
- * Intento 1 → inmediato
- * Si falla → espera 1 segundo
- * Intento 2 → espera 2 segundos si vuelve a fallar
- * Intento 3 → si falla, devuelve el error.
- */
+async function cargarDatos(manual = false) {
 
-async function obtenerDatosConReintentos(url, intentos = 3) {
+    if (estado.cargando) {
+        return;
+    }
+
+    estado.cargando = true;
+
+    const boton = $("#botonRecargar");
+    boton.classList.add("girando");
+
+    if (!estado.datos) {
+        marcarConexion("Cargando", "cargando");
+    }
+
+    try {
+
+        const datos = await pedirConReintentos(API_URL);
+
+        estado.datos = datos;
+
+        guardarCache(datos);
+        pintarTodo();
+
+        marcarConexion("Al día", "online");
+        mostrarUltimaActualizacion(Date.now(), false);
+
+        if (manual) {
+            avisar("Datos actualizados");
+        }
+
+    } catch (error) {
+
+        console.error("No se pudo conectar con la hoja:", error);
+
+        marcarConexion("Sin conexión", "error");
+
+        if (estado.datos) {
+            avisar("Sin conexión. Se muestran los últimos datos guardados.");
+        } else {
+            pintarErrorInicial();
+        }
+
+    } finally {
+
+        estado.cargando = false;
+        boton.classList.remove("girando");
+
+    }
+
+}
+
+
+/*
+ * Tres intentos con espera creciente: la primera llamada a
+ * Apps Script a veces tarda en despertar.
+ */
+async function pedirConReintentos(url, intentos = 3) {
+
+    let ultimoError;
 
     for (let intento = 1; intento <= intentos; intento++) {
 
         try {
 
-            console.log(
-                `Intento de conexión ${intento}/${intentos}...`
-            );
+            const control = new AbortController();
+            const tiempo = setTimeout(() => control.abort(), 15000);
 
-            const respuesta = await fetch(url);
+            const respuesta = await fetch(url, {
+                signal: control.signal,
+                cache: "no-store"
+            });
+
+            clearTimeout(tiempo);
 
             if (!respuesta.ok) {
-
-                throw new Error(
-                    "No se pudo conectar con la API. Código HTTP: " +
-                    respuesta.status
-                );
-
+                throw new Error("HTTP " + respuesta.status);
             }
 
-            const datos = await respuesta.json();
-
-            console.log(
-                `Conexión realizada correctamente en el intento ${intento}.`
-            );
-
-            return datos;
+            return await respuesta.json();
 
         } catch (error) {
 
-            console.error(
-                `Error en el intento ${intento}:`,
-                error
-            );
+            ultimoError = error;
 
-            if (intento === intentos) {
-
-                throw error;
-
+            if (intento < intentos) {
+                await esperar(intento * 900);
             }
-
-            /*
-             * Esperamos:
-             * intento 1 → 1 segundo
-             * intento 2 → 2 segundos
-             */
-
-            await new Promise(resolve => {
-
-                setTimeout(
-                    resolve,
-                    intento * 1000
-                );
-
-            });
 
         }
 
     }
 
+    throw ultimoError;
+
 }
 
 
-/* =========================================================
-   CARGAR DATOS DE GOOGLE SHEETS
-========================================================= */
+const esperar = (ms) => new Promise((listo) => setTimeout(listo, ms));
 
-async function cargarDatos() {
 
-    actualizarEstadoConexion(
-        "Cargando...",
-        "loading"
-    );
+/* ---------------------------------------------------------
+   GUARDADO LOCAL
+--------------------------------------------------------- */
 
+function guardarCache(datos) {
     try {
-
-        datosLiga =
-            await obtenerDatosConReintentos(
-                API_URL
-            );
-
-        console.log(
-            "Datos recibidos:",
-            datosLiga
+        localStorage.setItem(
+            CLAVE_CACHE,
+            JSON.stringify({ fecha: Date.now(), datos })
         );
-
-        procesarDatos();
-
-        actualizarEstadoConexion(
-            "Conectado",
-            "online"
-        );
-
-        const ultimaActualizacion =
-            document.getElementById(
-                "ultimaActualizacion"
-            );
-
-        if (ultimaActualizacion) {
-
-            ultimaActualizacion.textContent =
-                "Actualizado: " +
-                obtenerHoraActual();
-
-        }
-
     } catch (error) {
-
-        console.error(
-            "Error definitivo de conexión:",
-            error
-        );
-
-        actualizarEstadoConexion(
-            "Error de conexión",
-            "error"
-        );
-
-        mostrarError();
-
+        /* Modo privado de Safari: no pasa nada, seguimos sin caché. */
     }
+}
 
+
+function leerCache() {
+    try {
+        const crudo = localStorage.getItem(CLAVE_CACHE);
+        return crudo ? JSON.parse(crudo) : null;
+    } catch (error) {
+        return null;
+    }
 }
 
 
 /* =========================================================
-   PROCESAR DATOS
+   INTERPRETAR LA HOJA
 ========================================================= */
 
-function procesarDatos() {
+function leerJugadores() {
 
-    if (!datosLiga) {
-        return;
+    const resumen = estado.datos && estado.datos.resumen;
+
+    if (!resumen || !resumen.length) {
+        return [];
     }
 
-    cargarResumen();
+    const inicio = resumen.findIndex((fila) => fila[0] === "Jugador");
 
-    cargarJugadores();
-
-    cargarSelectorJornadas();
-
-}
-
-
-/* =========================================================
-   RESUMEN GENERAL
-========================================================= */
-
-function cargarResumen() {
-
-    const resumen =
-        datosLiga.resumen;
-
-    if (
-        !resumen ||
-        resumen.length === 0
-    ) {
-        return;
+    if (inicio === -1) {
+        return [];
     }
-
-    /*
-     * En nuestra hoja:
-     *
-     * fila 0 → vacía
-     * fila 1 → título
-     * fila 2 → cabeceras
-     * filas 3-10 → jugadores
-     * fila TOTAL → totales
-     */
-
-    const filaTotal =
-        resumen.find(
-            fila => fila[0] === "TOTAL"
-        );
-
-    if (filaTotal) {
-
-        animarImporte(
-            "dineroTotal",
-            limpiarCantidad(filaTotal[1])
-        );
-
-        animarImporte(
-            "dineroActual",
-            limpiarCantidad(filaTotal[2])
-        );
-
-        animarImporte(
-            "dineroPendiente",
-            limpiarCantidad(filaTotal[3])
-        );
-
-    }
-
-    /*
-     * Calculamos cuántas jornadas tienen datos.
-     */
-
-    const jornadas =
-        datosLiga.jornadas || [];
-
-    let jornadasCompletadas = 0;
-
-    jornadas.slice(1).forEach(
-        fila => {
-
-            const numeroJornada =
-                fila[0];
-
-            if (!numeroJornada) {
-                return;
-            }
-
-            const tieneDatos =
-                fila
-                    .slice(1)
-                    .some(
-                        valor => valor !== ""
-                    );
-
-            if (tieneDatos) {
-                jornadasCompletadas++;
-            }
-
-        }
-    );
-
-    animarContadorEntero(
-        "jornadasCompletadas",
-        jornadasCompletadas,
-        " / 38"
-    );
-
-}
-
-
-/* =========================================================
-   TABLA DE JUGADORES
-========================================================= */
-
-function cargarJugadores() {
-
-    const resumen =
-        datosLiga.resumen;
-
-    if (
-        !resumen ||
-        resumen.length === 0
-    ) {
-        return;
-    }
-
-    const tabla =
-        document.getElementById(
-            "tablaJugadores"
-        );
-
-    if (!tabla) {
-        return;
-    }
-
-    /*
-     * Buscamos la fila donde están las cabeceras.
-     */
-
-    const indiceCabeceras =
-        resumen.findIndex(
-            fila => fila[0] === "Jugador"
-        );
-
-    if (indiceCabeceras === -1) {
-
-        mostrarMensajeTabla(
-            tabla,
-            "No se encontraron los datos de jugadores."
-        );
-
-        return;
-    }
-
-    /*
-     * Creamos el control de ordenación.
-     */
-
-    crearControlOrdenacion();
-
-    /*
-     * Guardamos los jugadores en objetos para poder
-     * ordenarlos fácilmente.
-     */
 
     const jugadores = [];
 
-    for (
-        let i = indiceCabeceras + 1;
-        i < resumen.length;
-        i++
-    ) {
+    for (let i = inicio + 1; i < resumen.length; i++) {
 
-        const jugador =
-            resumen[i];
+        const fila = resumen[i];
 
-        if (
-            !jugador[0] ||
-            jugador[0] === "TOTAL"
-        ) {
+        if (!fila[0] || fila[0] === "TOTAL") {
             continue;
         }
 
-        const nombre =
-            jugador[0];
-
-        const totalDebe =
-            limpiarCantidad(
-                jugador[1]
-            );
-
-        const totalPagado =
-            limpiarCantidad(
-                jugador[2]
-            );
-
-        const pendiente =
-            limpiarCantidad(
-                jugador[3]
-            );
-
-        const jornadasPagadas =
-            jugador[4] || "0";
-
-        const jornadasPendientes =
-            jugador[5] || "0";
-
-        const saldo =
-            limpiarCantidad(
-                jugador[7]
-            );
-
-        /*
-         * Columna I de Resumen = Multas
-         */
-
-        const multas =
-            limpiarCantidad(
-                jugador[8]
-            );
+        const totalDebe = aNumero(fila[1]);
+        const totalPagado = aNumero(fila[2]);
+        const pendiente = aNumero(fila[3]);
 
         jugadores.push({
-
-            nombre,
-
+            nombre: String(fila[0]).trim(),
             totalDebe,
-
             totalPagado,
-
             pendiente,
-
-            jornadasPagadas,
-
-            jornadasPendientes,
-
-            saldo,
-
-            multas
-
+            jornadasPagadas: aNumero(fila[4]),
+            jornadasPendientes: aNumero(fila[5]),
+            saldo: aNumero(fila[7]),
+            multas: aNumero(fila[8]),
+            progreso: totalDebe > 0
+                ? Math.max(0, Math.min(1, totalPagado / totalDebe))
+                : 1
         });
 
     }
 
-    /*
-     * Ordenamos según la opción seleccionada.
-     */
-
-    jugadores.sort(
-        compararJugadores
-    );
-
-    /*
-     * Limpiamos la tabla antes de volver a pintarla.
-     */
-
-    tabla.innerHTML = "";
-
-    /*
-     * Creamos las filas.
-     */
-
-    jugadores.forEach(
-        (jugador, indice) => {
-
-            const nombre =
-                jugador.nombre;
-
-            const totalDebe =
-                jugador.totalDebe;
-
-            const totalPagado =
-                jugador.totalPagado;
-
-            const pendiente =
-                jugador.pendiente;
-
-            const jornadasPagadas =
-                jugador.jornadasPagadas;
-
-            const jornadasPendientes =
-                jugador.jornadasPendientes;
-
-            const saldo =
-                jugador.saldo;
-
-            const multas =
-                jugador.multas;
-
-            const fila =
-                document.createElement(
-                    "tr"
-                );
-
-
-            /* =================================================
-               ESTADO DEL JUGADOR
-            ================================================= */
-
-            let estado;
-
-            let claseEstado;
-
-            let iconoEstado;
-
-
-            if (
-                parseFloat(
-                    pendiente.replace(
-                        ",",
-                        "."
-                    )
-                ) === 0
-            ) {
-
-                estado = "Al día";
-
-                claseEstado = "paid";
-
-                iconoEstado =
-                    "bi-check-circle-fill";
-
-            } else if (
-                parseFloat(
-                    totalPagado.replace(
-                        ",",
-                        "."
-                    )
-                ) > 0
-            ) {
-
-                estado = "Pendiente";
-
-                claseEstado = "partial";
-
-                iconoEstado =
-                    "bi-exclamation-circle-fill";
-
-            } else {
-
-                estado = "Sin pagar";
-
-                claseEstado = "pending";
-
-                iconoEstado =
-                    "bi-x-circle-fill";
-
-            }
-
-
-            /* =================================================
-               CONTENIDO DE LA FILA
-            ================================================= */
-
-            fila.innerHTML = `
-
-                <td>
-
-                    <div class="player-name">
-
-                        ${crearAvatarHTML(nombre)}
-
-                        <span>
-
-                            ${escaparHTML(nombre)}
-
-                        </span>
-
-                    </div>
-
-                </td>
-
-
-                <td>
-
-                    <span class="amount">
-
-                        ${totalDebe} €
-
-                    </span>
-
-                </td>
-
-
-                <td>
-
-                    <span class="amount amount-positive">
-
-                        ${totalPagado} €
-
-                    </span>
-
-                </td>
-
-
-                <td>
-
-                    <span class="amount ${
-                        parseFloat(
-                            pendiente.replace(
-                                ",",
-                                "."
-                            )
-                        ) > 0
-                            ? "amount-negative"
-                            : "amount-positive"
-                    }">
-
-                        ${pendiente} €
-
-                    </span>
-
-                </td>
-
-
-                <td>
-
-                    <strong>
-
-                        ${jornadasPagadas}
-
-                    </strong>
-
-                    <span class="text-muted">
-
-                        / ${jornadasPendientes}
-
-                    </span>
-
-                </td>
-
-
-                <td>
-
-                    <span class="amount ${
-                        parseFloat(
-                            saldo.replace(
-                                ",",
-                                "."
-                            )
-                        ) > 0
-                            ? "amount-positive"
-                            : "amount-neutral"
-                    }">
-
-                        ${saldo} €
-
-                    </span>
-
-                </td>
-
-
-                <!-- MULTAS -->
-
-                <td>
-
-                    <span class="amount ${
-                        parseFloat(
-                            multas.replace(
-                                ",",
-                                "."
-                            )
-                        ) > 0
-                            ? "amount-negative"
-                            : "amount-neutral"
-                    }">
-
-                        ${multas} €
-
-                    </span>
-
-                </td>
-
-
-                <!-- ESTADO -->
-
-                <td>
-
-                    <span class="status-badge ${claseEstado}">
-
-                        <i class="bi ${iconoEstado}"></i>
-
-                        ${estado}
-
-                    </span>
-
-                </td>
-
-            `;
-
-
-            /*
-             * Entrada escalonada.
-             */
-
-            fila.style.animationDelay =
-                `${indice * 55}ms`;
-
-
-            tabla.appendChild(
-                fila
-            );
-
-        }
-    );
+    return jugadores;
 
 }
 
 
-/* =========================================================
-   CONTROL DE ORDENACIÓN
-========================================================= */
+function leerTotales() {
 
-function crearControlOrdenacion() {
+    const resumen = (estado.datos && estado.datos.resumen) || [];
+    const fila = resumen.find((f) => f[0] === "TOTAL");
 
-    const tabla =
-        document.getElementById(
-            "tablaJugadores"
-        );
-
-    if (!tabla) {
-        return;
+    if (!fila) {
+        return { total: 0, cobrado: 0, pendiente: 0 };
     }
 
-    /*
-     * Evitamos crear el control varias veces.
-     */
-
-    if (
-        document.getElementById(
-            "controlOrdenJugadores"
-        )
-    ) {
-
-        actualizarControlOrdenacion();
-
-        return;
-
-    }
-
-    /*
-     * Contenedor principal.
-     */
-
-    const contenedor =
-        document.createElement(
-            "div"
-        );
-
-    contenedor.id =
-        "controlOrdenJugadores";
-
-    contenedor.className =
-        "control-orden-jugadores";
-
-
-    /*
-     * Etiqueta.
-     */
-
-    const etiqueta =
-        document.createElement(
-            "label"
-        );
-
-    etiqueta.setAttribute(
-        "for",
-        "ordenJugadores"
-    );
-
-    etiqueta.innerHTML =
-        '<i class="bi bi-sort-down"></i> Ordenar por';
-
-
-    /*
-     * Select.
-     */
-
-    const select =
-        document.createElement(
-            "select"
-        );
-
-    select.id =
-        "ordenJugadores";
-
-    select.className =
-        "form-select";
-
-
-    const opciones = [
-
-        {
-            valor: "nombre",
-            texto: "Jugador"
-        },
-
-        {
-            valor: "totalDebe",
-            texto: "Total que debe"
-        },
-
-        {
-            valor: "totalPagado",
-            texto: "Total pagado"
-        },
-
-        {
-            valor: "pendiente",
-            texto: "Pendiente"
-        },
-
-        {
-            valor: "jornadasPagadas",
-            texto: "Jornadas pagadas"
-        },
-
-        {
-            valor: "saldo",
-            texto: "Saldo"
-        },
-
-        {
-            valor: "multas",
-            texto: "Multas"
-        }
-
-    ];
-
-
-    opciones.forEach(
-        opcion => {
-
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-            option.value =
-                opcion.valor;
-
-            option.textContent =
-                opcion.texto;
-
-            if (
-                opcion.valor ===
-                ordenJugadores.campo
-            ) {
-
-                option.selected =
-                    true;
-
-            }
-
-            select.appendChild(
-                option
-            );
-
-        }
-    );
-
-
-    /*
-     * Botón de dirección.
-     */
-
-    const boton =
-        document.createElement(
-            "button"
-        );
-
-    boton.type = "button";
-
-    boton.id =
-        "direccionOrdenJugadores";
-
-    boton.className =
-        "btn btn-outline-secondary";
-
-    boton.title =
-        "Cambiar orden";
-
-
-    /*
-     * Cambio de campo.
-     */
-
-    select.addEventListener(
-        "change",
-        () => {
-
-            ordenJugadores.campo =
-                select.value;
-
-            /*
-             * Para nombre usamos ascendente
-             * por defecto.
-             */
-
-            if (
-                ordenJugadores.campo ===
-                "nombre"
-            ) {
-
-                ordenJugadores.direccion =
-                    "asc";
-
-            } else {
-
-                ordenJugadores.direccion =
-                    "desc";
-
-            }
-
-            actualizarIconoOrdenacion();
-
-            cargarJugadores();
-
-        }
-    );
-
-
-    /*
-     * Cambio de dirección.
-     */
-
-    boton.addEventListener(
-        "click",
-        () => {
-
-            ordenJugadores.direccion =
-                ordenJugadores.direccion ===
-                "asc"
-                    ? "desc"
-                    : "asc";
-
-            actualizarIconoOrdenacion();
-
-            cargarJugadores();
-
-        }
-    );
-
-
-    contenedor.appendChild(
-        etiqueta
-    );
-
-    contenedor.appendChild(
-        select
-    );
-
-    contenedor.appendChild(
-        boton
-    );
-
-
-    /*
-     * IMPORTANTE:
-     *
-     * tablaJugadores normalmente es un <tbody>.
-     *
-     * NO debemos meter un <div> dentro de la tabla.
-     *
-     * Buscamos la tabla HTML y colocamos el control
-     * justo antes de ella.
-     */
-
-    const tablaHTML =
-        tabla.closest("table");
-
-    if (
-        tablaHTML &&
-        tablaHTML.parentElement
-    ) {
-
-        tablaHTML.parentElement.insertBefore(
-            contenedor,
-            tablaHTML
-        );
-
-    } else {
-
-        /*
-         * Fallback por si la tabla no tiene
-         * un padre válido.
-         */
-
-        tabla.parentElement.insertBefore(
-            contenedor,
-            tabla
-        );
-
-    }
-
-
-    actualizarIconoOrdenacion();
+    return {
+        total: aNumero(fila[1]),
+        cobrado: aNumero(fila[2]),
+        pendiente: aNumero(fila[3])
+    };
 
 }
 
 
-/* =========================================================
-   ACTUALIZAR CONTROL DE ORDENACIÓN
-========================================================= */
+/* Jornadas con algún dato cargado */
+function leerJornadas() {
 
-function actualizarControlOrdenacion() {
+    const jornadas = (estado.datos && estado.datos.jornadas) || [];
+    const control = (estado.datos && estado.datos.controlPagos) || [];
 
-    const select =
-        document.getElementById(
-            "ordenJugadores"
-        );
+    const total = jornadas.length ? jornadas[0].length - 1 : 0;
 
-    if (select) {
+    return jornadas.slice(1)
+        .filter((fila) => fila[0] !== "" && fila[0] !== null && fila[0] !== undefined)
+        .map((fila) => {
 
-        select.value =
-            ordenJugadores.campo;
+            const numero = String(fila[0]);
+            const filaControl = control.find((c) => String(c[0]) === numero);
 
-    }
+            let pagados = 0;
 
-    actualizarIconoOrdenacion();
-
-}
-
-
-/* =========================================================
-   ICONO DE ORDENACIÓN
-========================================================= */
-
-function actualizarIconoOrdenacion() {
-
-    const boton =
-        document.getElementById(
-            "direccionOrdenJugadores"
-        );
-
-    if (!boton) {
-        return;
-    }
-
-    if (
-        ordenJugadores.direccion ===
-        "asc"
-    ) {
-
-        boton.innerHTML =
-            '<i class="bi bi-sort-up"></i>';
-
-        boton.title =
-            "Orden ascendente";
-
-    } else {
-
-        boton.innerHTML =
-            '<i class="bi bi-sort-down"></i>';
-
-        boton.title =
-            "Orden descendente";
-
-    }
-
-}
-
-
-/* =========================================================
-   COMPARAR JUGADORES
-========================================================= */
-
-function compararJugadores(
-    a,
-    b
-) {
-
-    const campo =
-        ordenJugadores.campo;
-
-    const direccion =
-        ordenJugadores.direccion ===
-        "asc"
-            ? 1
-            : -1;
-
-
-    /*
-     * Ordenar por nombre.
-     */
-
-    if (campo === "nombre") {
-
-        return (
-            a.nombre.localeCompare(
-                b.nombre,
-                "es",
-                {
-                    sensitivity: "base"
+            if (filaControl) {
+                for (let i = 1; i < filaControl.length; i++) {
+                    if (String(filaControl[i]).trim() === "✓") {
+                        pagados++;
+                    }
                 }
-            ) * direccion
-        );
+            }
 
-    }
+            const conDatos = fila.slice(1).some((v) => v !== "" && v !== null);
 
+            return { numero, pagados, total, conDatos };
 
-    /*
-     * Convertimos valores numéricos.
-     */
-
-    let valorA = 0;
-
-    let valorB = 0;
-
-
-    if (
-        campo === "totalDebe"
-    ) {
-
-        valorA =
-            convertirNumero(
-                a.totalDebe
-            );
-
-        valorB =
-            convertirNumero(
-                b.totalDebe
-            );
-
-    } else if (
-        campo === "totalPagado"
-    ) {
-
-        valorA =
-            convertirNumero(
-                a.totalPagado
-            );
-
-        valorB =
-            convertirNumero(
-                b.totalPagado
-            );
-
-    } else if (
-        campo === "pendiente"
-    ) {
-
-        valorA =
-            convertirNumero(
-                a.pendiente
-            );
-
-        valorB =
-            convertirNumero(
-                b.pendiente
-            );
-
-    } else if (
-        campo === "jornadasPagadas"
-    ) {
-
-        valorA =
-            convertirNumero(
-                a.jornadasPagadas
-            );
-
-        valorB =
-            convertirNumero(
-                b.jornadasPagadas
-            );
-
-    } else if (
-        campo === "saldo"
-    ) {
-
-        valorA =
-            convertirNumero(
-                a.saldo
-            );
-
-        valorB =
-            convertirNumero(
-                b.saldo
-            );
-
-    } else if (
-        campo === "multas"
-    ) {
-
-        valorA =
-            convertirNumero(
-                a.multas
-            );
-
-        valorB =
-            convertirNumero(
-                b.multas
-            );
-
-    }
-
-
-    return (
-        (valorA - valorB) *
-        direccion
-    );
+        });
 
 }
 
 
 /* =========================================================
-   CONVERTIR A NÚMERO
+   PINTAR
 ========================================================= */
 
-function convertirNumero(
-    valor
-) {
+function pintarTodo() {
 
-    if (
-        valor === null ||
-        valor === undefined
-    ) {
+    estado.jugadores = leerJugadores();
 
-        return 0;
+    pintarResumen();
+    pintarJugadores();
+    pintarSelectorJornadas();
 
+    if (estado.jornadaActiva) {
+        pintarJornada(estado.jornadaActiva);
+    } else {
+        pintarJornadaVacia();
     }
-
-
-    let texto =
-        String(valor)
-            .replace("€", "")
-            .replace(/\s/g, "")
-            .trim();
-
-
-    if (!texto) {
-        return 0;
-    }
-
-
-    texto = texto
-        .replace(/\./g, "")
-        .replace(",", ".");
-
-
-    const numero =
-        parseFloat(texto);
-
-
-    return isNaN(numero)
-        ? 0
-        : numero;
 
 }
 
 
-/* =========================================================
-   SELECTOR DE JORNADAS
-========================================================= */
+/* ---------------------------------------------------------
+   RESUMEN
+--------------------------------------------------------- */
 
-function cargarSelectorJornadas() {
+function pintarResumen() {
 
-    const selector =
-        document.getElementById(
-            "selectorJornada"
+    const totales = leerTotales();
+    const jugadores = estado.jugadores;
+
+    animarEuros("#dineroPendiente", totales.pendiente);
+    animarEuros("#dineroActual", totales.cobrado);
+    animarEuros("#dineroTotal", totales.total);
+
+    const proporcion = totales.total > 0 ? totales.cobrado / totales.total : 0;
+    $("#barraBote").style.width = Math.round(proporcion * 100) + "%";
+
+    /* Jornadas jugadas */
+    const jornadas = leerJornadas();
+    const jugadas = jornadas.filter((j) => j.conDatos).length;
+
+    $("#jornadasCompletadas").textContent = jugadas;
+    $("#jornadasCompletadas").nextElementSibling.textContent = "de " + TOTAL_JORNADAS;
+
+    /* Jugadores al día */
+    const alDia = jugadores.filter((j) => j.pendiente <= 0).length;
+
+    $("#jugadoresAlDia").textContent = alDia;
+    $("#jugadoresTotales").textContent = "de " + jugadores.length + " jugadores";
+
+    /* Multas */
+    const multas = jugadores.reduce((suma, j) => suma + j.multas, 0);
+    $("#multasTotales").textContent = euros(multas);
+
+    /* Mayor deuda */
+    const deudor = jugadores
+        .slice()
+        .sort((a, b) => b.pendiente - a.pendiente)[0];
+
+    if (deudor && deudor.pendiente > 0) {
+        $("#mayorDeuda").textContent = euros(deudor.pendiente);
+        $("#mayorDeudaNombre").textContent = deudor.nombre;
+    } else {
+        $("#mayorDeuda").textContent = "0 €";
+        $("#mayorDeudaNombre").textContent = "Nadie debe nada";
+    }
+
+    /* Ranking de morosos */
+    const morosos = jugadores
+        .filter((j) => j.pendiente > 0)
+        .sort((a, b) => b.pendiente - a.pendiente)
+        .slice(0, 5);
+
+    const lista = $("#listaMorosos");
+
+    if (!morosos.length) {
+        lista.innerHTML = plantillaVacio(
+            "bi-emoji-sunglasses",
+            "Todo cobrado",
+            "Ningún jugador tiene pagos pendientes."
         );
-
-    const jornadas =
-        datosLiga.jornadas || [];
-
-
-    if (!selector) {
         return;
     }
 
+    lista.innerHTML = morosos.map((j) => filaJugador(j, "pendiente")).join("");
 
-    selector.innerHTML = "";
-
-
-    jornadas.slice(1).forEach(
-        fila => {
-
-            const numero =
-                fila[0];
-
-            if (!numero) {
-                return;
-            }
+}
 
 
-            const ficha =
-                document.createElement(
-                    "button"
-                );
+/* ---------------------------------------------------------
+   JUGADORES
+--------------------------------------------------------- */
 
-            ficha.type = "button";
+function pintarJugadores() {
 
-            ficha.className =
-                "jornada-pill";
+    const lista = $("#listaJugadores");
+    const texto = estado.busqueda.trim().toLowerCase();
 
-            ficha.textContent =
-                numero;
+    let jugadores = estado.jugadores.slice();
 
-            ficha.dataset.jornada =
-                numero;
-
-            ficha.setAttribute(
-                "role",
-                "tab"
-            );
-
-            ficha.setAttribute(
-                "aria-selected",
-                "false"
-            );
-
-            selector.appendChild(
-                ficha
-            );
-
-        }
-    );
-
-
-    /*
-     * Usamos onclick para evitar que cada
-     * actualización de 5 minutos añada
-     * otro listener.
-     */
-
-    selector.onclick = evento => {
-
-        const ficha =
-            evento.target.closest(
-                ".jornada-pill"
-            );
-
-        if (!ficha) {
-            return;
-        }
-
-        seleccionarJornada(
-            ficha.dataset.jornada
+    if (texto) {
+        jugadores = jugadores.filter((j) =>
+            normalizar(j.nombre).includes(normalizar(texto))
         );
+    }
+
+    jugadores.sort(compararJugadores);
+
+    if (!jugadores.length) {
+
+        lista.innerHTML = texto
+            ? plantillaVacio(
+                "bi-search",
+                "Sin resultados",
+                "Ningún jugador coincide con «" + escapar(texto) + "»."
+            )
+            : plantillaVacio(
+                "bi-people",
+                "Todavía no hay jugadores",
+                "Comprueba que la hoja de cálculo tiene datos."
+            );
+
+        return;
+    }
+
+    lista.innerHTML = jugadores
+        .map((j) => filaJugador(j, estado.orden))
+        .join("");
+
+}
+
+
+function compararJugadores(a, b) {
+
+    if (estado.orden === "nombre") {
+        return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
+    }
+
+    return b[estado.orden] - a[estado.orden];
+
+}
+
+
+/*
+ * Una fila de jugador. El campo destacado a la derecha
+ * cambia según el orden elegido.
+ */
+function filaJugador(jugador, destacado) {
+
+    const campos = {
+        pendiente: { etiqueta: "pendiente", valor: jugador.pendiente },
+        totalPagado: { etiqueta: "pagado", valor: jugador.totalPagado },
+        multas: { etiqueta: "multas", valor: jugador.multas },
+        saldo: { etiqueta: "saldo", valor: jugador.saldo },
+        nombre: { etiqueta: "pendiente", valor: jugador.pendiente }
+    };
+
+    const campo = campos[destacado] || campos.pendiente;
+
+    let clase = "importe-neutro";
+
+    if (campo.etiqueta === "pendiente" || campo.etiqueta === "multas") {
+        clase = campo.valor > 0 ? "importe-deuda" : "importe-ok";
+    } else if (campo.valor > 0) {
+        clase = "importe-ok";
+    }
+
+    return `
+        <button type="button" class="fila" data-jugador="${escapar(jugador.nombre)}">
+
+            ${avatar(jugador.nombre)}
+
+            <span class="fila-datos">
+                <span class="fila-nombre">${escapar(jugador.nombre)}</span>
+                <span class="fila-sub">
+                    ${jugador.jornadasPagadas} jornadas pagadas
+                </span>
+                <span class="progreso">
+                    <span style="width:${Math.round(jugador.progreso * 100)}%"></span>
+                </span>
+            </span>
+
+            <span class="fila-cifra">
+                <span class="fila-importe ${clase}">${euros(campo.valor)}</span>
+                <span class="fila-etiqueta">${campo.etiqueta}</span>
+            </span>
+
+        </button>
+    `;
+
+}
+
+
+/* ---------------------------------------------------------
+   JORNADAS
+--------------------------------------------------------- */
+
+function pintarSelectorJornadas() {
+
+    const selector = $("#selectorJornada");
+    const jornadas = leerJornadas();
+
+    if (!jornadas.length) {
+        selector.innerHTML = "";
+        return;
+    }
+
+    selector.innerHTML = jornadas.map((j) => {
+
+        let clase = "";
+
+        if (j.conDatos && j.total > 0 && j.pagados === j.total) {
+            clase = "completa";
+        } else if (j.pagados > 0) {
+            clase = "parcial";
+        }
+
+        const activa = String(j.numero) === String(estado.jornadaActiva)
+            ? " activa"
+            : "";
+
+        return `
+            <button type="button"
+                    class="jornada-pill ${clase}${activa}"
+                    role="tab"
+                    aria-selected="${activa ? "true" : "false"}"
+                    data-jornada="${escapar(j.numero)}">
+                <small>J</small>
+                <b>${escapar(j.numero)}</b>
+                <span class="punto"></span>
+            </button>
+        `;
+
+    }).join("");
+
+    selector.onclick = (evento) => {
+
+        const ficha = evento.target.closest(".jornada-pill");
+
+        if (ficha) {
+            elegirJornada(ficha.dataset.jornada);
+        }
 
     };
 
+    /* Si no hay ninguna elegida, abrimos la última con datos. */
+    if (!estado.jornadaActiva) {
 
-    /*
-     * Recuperamos la jornada activa si existía.
-     */
+        const conDatos = jornadas.filter((j) => j.conDatos);
 
-    if (jornadaActiva) {
-
-        const fichaActiva =
-            selector.querySelector(
-                `[data-jornada="${jornadaActiva}"]`
-            );
-
-        if (fichaActiva) {
-
-            fichaActiva.classList.add(
-                "activa"
-            );
-
-            fichaActiva.setAttribute(
-                "aria-selected",
-                "true"
-            );
-
+        if (conDatos.length) {
+            elegirJornada(conDatos[conDatos.length - 1].numero);
         }
 
     }
@@ -1357,1183 +587,716 @@ function cargarSelectorJornadas() {
 }
 
 
-/* =========================================================
-   SELECCIONAR JORNADA
-========================================================= */
+function elegirJornada(numero, desplazar = true) {
 
-function seleccionarJornada(
-    numeroJornada
-) {
+    estado.jornadaActiva = String(numero);
 
-    jornadaActiva =
-        numeroJornada;
+    $$(".jornada-pill").forEach((ficha) => {
 
+        const activa = ficha.dataset.jornada === estado.jornadaActiva;
 
-    /*
-     * Marcamos visualmente la ficha activa.
-     */
+        ficha.classList.toggle("activa", activa);
+        ficha.setAttribute("aria-selected", activa ? "true" : "false");
 
-    document
-        .querySelectorAll(
-            ".jornada-pill"
-        )
-        .forEach(
-            ficha => {
+        if (activa && desplazar) {
+            ficha.scrollIntoView({
+                behavior: "smooth",
+                inline: "center",
+                block: "nearest"
+            });
+        }
 
-                const esActiva =
-                    ficha.dataset.jornada ===
-                    String(
-                        numeroJornada
-                    );
+    });
 
-
-                ficha.classList.toggle(
-                    "activa",
-                    esActiva
-                );
-
-
-                ficha.setAttribute(
-                    "aria-selected",
-                    esActiva
-                        ? "true"
-                        : "false"
-                );
-
-
-                if (esActiva) {
-
-                    ficha.scrollIntoView({
-
-                        behavior: "smooth",
-
-                        inline: "center",
-
-                        block: "nearest"
-
-                    });
-
-                }
-
-            }
-        );
-
-
-    mostrarJornada(
-        numeroJornada
-    );
+    pintarJornada(estado.jornadaActiva);
 
 }
 
 
-/* =========================================================
-   MOSTRAR JORNADA
-========================================================= */
+function pintarJornada(numero) {
 
-function mostrarJornada(
-    jornadaSeleccionada
-) {
+    const info = $("#jornadaInfo");
+    const lista = $("#listaJornada");
 
-    const contenedor =
-        document.getElementById(
-            "jornadaInfo"
-        );
+    const datos = estado.datos || {};
 
-    const detalle =
-        document.getElementById(
-            "detalleJornada"
-        );
-
-    const tabla =
-        document.getElementById(
-            "tablaJornada"
-        );
-
-
-    if (
-        !contenedor ||
-        !detalle ||
-        !tabla
-    ) {
-
-        return;
-
-    }
-
-
-    if (!jornadaSeleccionada) {
-
-        detalle.classList.add(
-            "d-none"
-        );
-
-
-        contenedor.innerHTML = `
-
-            <div class="empty-state">
-
-                <i class="bi bi-calendar3"></i>
-
-                <h3>
-                    Selecciona una jornada
-                </h3>
-
-                <p>
-                    Selecciona una jornada para consultar
-                    quién ha pagado y cuánto debía pagar.
-                </p>
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    /*
-     * Buscamos la jornada en las hojas.
-     */
-
-    const pagos =
-        buscarJornada(
-            datosLiga.pagosPorJornada,
-            jornadaSeleccionada
-        );
-
-    const control =
-        buscarJornada(
-            datosLiga.controlPagos,
-            jornadaSeleccionada
-        );
-
-    const posiciones =
-        buscarJornada(
-            datosLiga.jornadas,
-            jornadaSeleccionada
-        );
-
+    const pagos = buscarFila(datos.pagosPorJornada, numero);
+    const control = buscarFila(datos.controlPagos, numero);
+    const posiciones = buscarFila(datos.jornadas, numero);
+    const nombres = (datos.jornadas && datos.jornadas[0]) || [];
 
     if (!pagos) {
 
-        detalle.classList.add(
-            "d-none"
+        info.innerHTML = "";
+        lista.innerHTML = plantillaVacio(
+            "bi-calendar-x",
+            "Jornada " + escapar(numero) + " sin datos",
+            "Esta jornada aún no se ha registrado en la hoja."
         );
 
-
-        contenedor.innerHTML = `
-
-            <div class="empty-state">
-
-                <i class="bi bi-calendar-x"></i>
-
-                <h3>
-                    Jornada sin datos
-                </h3>
-
-                <p>
-                    Todavía no hay información disponible
-                    para la jornada ${escaparHTML(
-                        jornadaSeleccionada
-                    )}.
-                </p>
-
-            </div>
-
-        `;
-
         return;
-
     }
 
+    /* Montamos la lista de la jornada */
+    const filas = [];
 
-    /*
-     * La primera fila contiene los nombres.
-     */
+    for (let i = 1; i < nombres.length; i++) {
 
-    const nombres =
-        datosLiga.jornadas[0];
-
-
-    tabla.innerHTML = "";
-
-
-    /*
-     * =====================================================
-     * CREAMOS LA LISTA DE JUGADORES
-     * =====================================================
-     */
-
-    const jugadoresJornada = [];
-
-
-    for (
-        let i = 1;
-        i < pagos.length;
-        i++
-    ) {
-
-        const nombre =
-            nombres[i];
+        const nombre = nombres[i];
 
         if (!nombre) {
             continue;
         }
 
+        const puesto = parseInt(
+            String(posiciones ? posiciones[i] : "").replace(/[^\d]/g, ""),
+            10
+        );
 
-        const cantidad =
-            pagos[i] || "0 €";
-
-
-        const posicion =
-            posiciones
-                ? posiciones[i]
-                : "-";
-
-
-        const haPagado =
-            control &&
-            control[i] === "✓";
-
-
-        const posicionNumero =
-            parseInt(
-                String(posicion).replace(
-                    /[^\d]/g,
-                    ""
-                ),
-                10
-            );
-
-
-        jugadoresJornada.push({
-
-            nombre,
-
-            cantidad,
-
-            posicion,
-
-            posicionNumero:
-                isNaN(
-                    posicionNumero
-                )
-                    ? 999
-                    : posicionNumero,
-
-            haPagado
-
+        filas.push({
+            nombre: String(nombre).trim(),
+            cantidad: aNumero(pagos[i]),
+            puesto: isNaN(puesto) ? 99 : puesto,
+            pagado: control ? String(control[i]).trim() === "✓" : false
         });
 
     }
 
-
-    /*
-     * =====================================================
-     * ORDENAR POR POSICIÓN
-     * =====================================================
-     */
-
-    jugadoresJornada.sort(
-        (a, b) =>
-            a.posicionNumero -
-            b.posicionNumero
-    );
-
-
-    /*
-     * =====================================================
-     * CREAMOS LAS FILAS
-     * =====================================================
-     */
-
-    jugadoresJornada.forEach(
-        (
-            jugador,
-            indice
-        ) => {
-
-            const {
-                nombre,
-                cantidad,
-                posicion,
-                haPagado
-            } = jugador;
-
-
-            const fila =
-                document.createElement(
-                    "tr"
-                );
-
-
-            let estadoHTML;
-
-
-            if (haPagado) {
-
-                estadoHTML = `
-
-                    <span class="status-badge paid">
-
-                        <i class="bi bi-check-circle-fill"></i>
-
-                        Pagado
-
-                    </span>
-
-                `;
-
-            } else {
-
-                estadoHTML = `
-
-                    <span class="status-badge pending">
-
-                        <i class="bi bi-x-circle-fill"></i>
-
-                        Pendiente
-
-                    </span>
-
-                `;
-
-            }
-
-
-            fila.innerHTML = `
-
-                <td>
-
-                    <div class="player-name">
-
-                        ${crearAvatarHTML(nombre)}
-
-                        <span>
-
-                            ${escaparHTML(nombre)}
-
-                        </span>
-
-                    </div>
-
-                </td>
-
-
-                <td>
-
-                    <strong>
-
-                        ${posicion || "-"}
-
-                    </strong>
-
-                </td>
-
-
-                <td>
-
-                    <span class="amount">
-
-                        ${escaparHTML(cantidad)}
-
-                    </span>
-
-                </td>
-
-
-                <td>
-
-                    ${haPagado ? "Sí" : "No"}
-
-                </td>
-
-
-                <td>
-
-                    ${estadoHTML}
-
-                </td>
-
-            `;
-
-
-            /*
-             * Animación escalonada.
-             */
-
-            fila.style.animationDelay =
-                `${indice * 55}ms`;
-
-
-            tabla.appendChild(
-                fila
-            );
-
-        }
-    );
-
-
-    /*
-     * =====================================================
-     * INFORMACIÓN SUPERIOR DE LA JORNADA
-     * =====================================================
-     */
-
-    const totalJugadores =
-        nombres.length - 1;
-
-
-    let jugadoresPagados = 0;
-
-
-    if (control) {
-
-        for (
-            let i = 1;
-            i < control.length;
-            i++
-        ) {
-
-            if (
-                control[i] === "✓"
-            ) {
-
-                jugadoresPagados++;
-
-            }
-
-        }
-
-    }
-
-
-    contenedor.innerHTML = `
-
-        <div class="p-4">
-
-            <div class="
-                d-flex
-                flex-wrap
-                justify-content-between
-                align-items-center
-                gap-3
-            ">
-
-                <div>
-
-                    <span class="section-subtitle">
-                        Jornada
-                    </span>
-
-                    <h3 class="mb-0">
-
-                        Jornada
-                        ${escaparHTML(
-                            jornadaSeleccionada
-                        )}
-
-                    </h3>
-
-                </div>
-
-
-                <span class="status-badge ${
-                    jugadoresPagados ===
-                    totalJugadores
-                        ? "paid"
-                        : "partial"
-                }">
-
-                    <i class="bi ${
-                        jugadoresPagados ===
-                        totalJugadores
-                            ? "bi-check-circle-fill"
-                            : "bi-clock-fill"
-                    }"></i>
-
-                    ${jugadoresPagados}
-                    /
-                    ${totalJugadores}
-                    pagados
-
-                </span>
-
+    filas.sort((a, b) => a.puesto - b.puesto);
+
+    const pagados = filas.filter((f) => f.pagado).length;
+    const completa = pagados === filas.length && filas.length > 0;
+
+    info.innerHTML = `
+        <div class="jornada-resumen">
+            <div>
+                <h2>Jornada ${escapar(numero)}</h2>
+                <p>${euros(filas.reduce((s, f) => s + f.cantidad, 0))} en juego</p>
             </div>
-
+            <span class="distintivo ${completa ? "distintivo-ok" : "distintivo-parcial"}">
+                <i class="bi ${completa ? "bi-check-circle-fill" : "bi-clock-fill"}"></i>
+                ${pagados}/${filas.length} pagado${filas.length === 1 ? "" : "s"}
+            </span>
         </div>
-
     `;
 
+    lista.innerHTML = filas.map((f) => `
+        <div class="fila">
 
-    detalle.classList.remove(
-        "d-none"
+            <span class="puesto ${f.puesto <= 3 ? "puesto-" + f.puesto : ""}">
+                ${f.puesto === 99 ? "–" : f.puesto + "º"}
+            </span>
+
+            ${avatar(f.nombre)}
+
+            <span class="fila-datos">
+                <span class="fila-nombre">${escapar(f.nombre)}</span>
+                <span class="fila-sub">${euros(f.cantidad)}</span>
+            </span>
+
+            <span class="distintivo ${f.pagado ? "distintivo-ok" : "distintivo-no"}">
+                <i class="bi ${f.pagado ? "bi-check-lg" : "bi-x-lg"}"></i>
+                ${f.pagado ? "Pagado" : "Debe"}
+            </span>
+
+        </div>
+    `).join("");
+
+}
+
+
+function pintarJornadaVacia() {
+
+    $("#jornadaInfo").innerHTML = "";
+
+    $("#listaJornada").innerHTML = plantillaVacio(
+        "bi-calendar3",
+        "Elige una jornada",
+        "Toca un número de arriba para ver quién ha pagado."
     );
 
 }
 
 
-/* =========================================================
-   BUSCAR JORNADA
-========================================================= */
+function buscarFila(tabla, numero) {
 
-function buscarJornada(
-    datos,
-    numeroJornada
-) {
-
-    if (!datos) {
+    if (!tabla) {
         return null;
     }
 
-
-    return datos.find(
-        fila =>
-            String(fila[0]) ===
-            String(numeroJornada)
-    );
+    return tabla.find((fila) => String(fila[0]) === String(numero));
 
 }
 
 
 /* =========================================================
-   ESTADO DE CONEXIÓN
+   FICHA DEL JUGADOR
 ========================================================= */
 
-function actualizarEstadoConexion(
-    texto,
-    estado
-) {
+function montarFicha() {
 
-    const elemento =
-        document.getElementById(
-            "estadoConexion"
-        );
+    /* Un solo listener para todas las listas */
+    $("#contenido").addEventListener("click", (evento) => {
+
+        const fila = evento.target.closest("[data-jugador]");
+
+        if (fila) {
+            abrirFicha(fila.dataset.jugador);
+        }
+
+    });
+
+    $("#sheetFondo").addEventListener("click", cerrarFicha);
+    $("#sheetCerrar").addEventListener("click", cerrarFicha);
+
+    document.addEventListener("keydown", (evento) => {
+        if (evento.key === "Escape") {
+            cerrarFicha();
+        }
+    });
+
+}
 
 
-    if (!elemento) {
+function abrirFicha(nombre) {
+
+    const jugador = estado.jugadores.find((j) => j.nombre === nombre);
+
+    if (!jugador) {
         return;
     }
 
+    let etiqueta = "Al día";
+    let clase = "distintivo-ok";
 
-    let icono =
-        "bi-arrow-repeat";
-
-
-    if (
-        estado === "online"
-    ) {
-
-        icono =
-            "bi-cloud-check-fill";
-
+    if (jugador.pendiente > 0 && jugador.totalPagado > 0) {
+        etiqueta = "Pago parcial";
+        clase = "distintivo-parcial";
+    } else if (jugador.pendiente > 0) {
+        etiqueta = "Sin pagar";
+        clase = "distintivo-no";
     }
 
+    $("#sheetCuerpo").innerHTML = `
 
-    if (
-        estado === "error"
-    ) {
+        <div class="sheet-cabecera">
+            ${avatar(jugador.nombre, true)}
+            <div>
+                <h2 id="sheetNombre">${escapar(jugador.nombre)}</h2>
+                <p><span class="distintivo ${clase}">${etiqueta}</span></p>
+            </div>
+        </div>
 
-        icono =
-            "bi-cloud-slash";
+        <div class="sheet-datos">
 
-    }
+            <div class="sheet-dato">
+                <span>Pendiente</span>
+                <strong class="${jugador.pendiente > 0 ? "importe-deuda" : "importe-ok"}">
+                    ${euros(jugador.pendiente)}
+                </strong>
+            </div>
 
+            <div class="sheet-dato">
+                <span>Ya pagado</span>
+                <strong class="importe-ok">${euros(jugador.totalPagado)}</strong>
+            </div>
 
-    elemento.classList.remove(
+            <div class="sheet-dato">
+                <span>Total acumulado</span>
+                <strong>${euros(jugador.totalDebe)}</strong>
+            </div>
 
-        "status-loading",
+            <div class="sheet-dato">
+                <span>Saldo</span>
+                <strong>${euros(jugador.saldo)}</strong>
+            </div>
 
-        "status-online",
+            <div class="sheet-dato">
+                <span>Multas</span>
+                <strong class="${jugador.multas > 0 ? "importe-deuda" : ""}">
+                    ${euros(jugador.multas)}
+                </strong>
+            </div>
 
-        "status-error"
+            <div class="sheet-dato">
+                <span>Jornadas</span>
+                <strong>${jugador.jornadasPagadas}
+                    <small style="font-size:.7rem;opacity:.6">
+                        / ${jugador.jornadasPagadas + jugador.jornadasPendientes}
+                    </small>
+                </strong>
+            </div>
 
-    );
-
-
-    elemento.classList.add(
-        `status-${estado}`
-    );
-
-
-    elemento.innerHTML = `
-
-        <i class="bi ${icono}"></i>
-
-        ${escaparHTML(texto)}
-
+        </div>
     `;
 
+    $("#sheetFondo").hidden = false;
+    $("#sheet").hidden = false;
+
+    document.body.style.overflow = "hidden";
+
 }
 
 
-/* =========================================================
-   ERROR DE CONEXIÓN
-========================================================= */
+function cerrarFicha() {
 
-function mostrarError() {
+    $("#sheetFondo").hidden = true;
+    $("#sheet").hidden = true;
 
-    const tabla =
-        document.getElementById(
-            "tablaJugadores"
-        );
-
-
-    if (!tabla) {
-        return;
-    }
-
-
-    tabla.innerHTML = `
-
-        <tr>
-
-            <td
-                colspan="8"
-                class="loading-cell"
-            >
-
-                <i class="bi bi-exclamation-triangle"></i>
-
-                No se pudieron cargar los datos.
-
-                <br>
-
-                <small>
-
-                    Comprueba la conexión con Google Sheets.
-
-                </small>
-
-            </td>
-
-        </tr>
-
-    `;
+    document.body.style.overflow = "";
 
 }
 
 
 /* =========================================================
-   MENSAJE TABLA
+   NAVEGACIÓN ENTRE VISTAS
 ========================================================= */
 
-function mostrarMensajeTabla(
-    tabla,
-    mensaje
-) {
+const TITULOS = {
+    resumen: "Resumen",
+    jugadores: "Jugadores",
+    jornadas: "Jornadas"
+};
 
-    tabla.innerHTML = `
 
-        <tr>
+function montarNavegacion() {
 
-            <td
-                colspan="8"
-                class="loading-cell"
-            >
+    $$(".tab").forEach((tab) => {
 
-                ${escaparHTML(mensaje)}
+        tab.addEventListener("click", () => abrirVista(tab.dataset.vista));
 
-            </td>
+    });
 
-        </tr>
+}
 
-    `;
+
+function abrirVista(nombre) {
+
+    $$(".vista").forEach((vista) => {
+
+        const activa = vista.id === "vista-" + nombre;
+
+        vista.hidden = !activa;
+        vista.classList.toggle("vista-activa", activa);
+
+    });
+
+    $$(".tab").forEach((tab) => {
+
+        const activa = tab.dataset.vista === nombre;
+
+        tab.classList.toggle("tab-activo", activa);
+
+        if (activa) {
+            tab.setAttribute("aria-current", "page");
+        } else {
+            tab.removeAttribute("aria-current");
+        }
+
+    });
+
+    $("#tituloVista").textContent = TITULOS[nombre] || "";
+
+    window.scrollTo(0, 0);
 
 }
 
 
 /* =========================================================
-   LIMPIAR CANTIDADES
+   BUSCADOR Y ORDEN
 ========================================================= */
 
-function limpiarCantidad(
-    valor
-) {
+function montarBuscador() {
 
-    if (
-        valor === null ||
-        valor === undefined
-    ) {
+    const campo = $("#buscadorJugadores");
+    const limpiar = $("#limpiarBusqueda");
 
-        return "0,00";
+    campo.addEventListener("input", () => {
 
-    }
+        estado.busqueda = campo.value;
+        limpiar.hidden = campo.value === "";
 
+        pintarJugadores();
 
-    let texto =
-        String(valor)
-            .replace("€", "")
-            .replace(/\s/g, "")
-            .trim();
+    });
 
+    limpiar.addEventListener("click", () => {
 
-    if (!texto) {
-        return "0,00";
-    }
+        campo.value = "";
+        estado.busqueda = "";
+        limpiar.hidden = true;
 
+        pintarJugadores();
+        campo.focus();
 
-    /*
-     * Convertimos formato español:
-     *
-     * 1.234,56 → 1234.56
-     * 12,00 → 12.00
-     */
+    });
 
-    texto = texto
-        .replace(/\./g, "")
-        .replace(",", ".");
+}
 
 
-    const numero =
-        parseFloat(texto);
+function montarOrden() {
 
+    $$("#chipsOrden .chip").forEach((chip) => {
 
-    if (isNaN(numero)) {
+        chip.addEventListener("click", () => {
 
-        return "0,00";
+            estado.orden = chip.dataset.orden;
 
-    }
+            $$("#chipsOrden .chip").forEach((c) =>
+                c.classList.toggle("chip-activo", c === chip)
+            );
 
+            chip.scrollIntoView({
+                behavior: "smooth",
+                inline: "center",
+                block: "nearest"
+            });
 
-    return numero
-        .toFixed(2)
-        .replace(".", ",");
+            pintarJugadores();
+
+        });
+
+    });
 
 }
 
 
 /* =========================================================
-   INICIALES
+   TIRAR PARA ACTUALIZAR
 ========================================================= */
 
-function obtenerIniciales(
-    nombre
-) {
+function montarTirarParaActualizar() {
+
+    const indicador = $("#ptr");
+
+    let inicioY = 0;
+    let tirando = false;
+    let distancia = 0;
+
+    const UMBRAL = 70;
+
+    document.addEventListener("touchstart", (evento) => {
+
+        if (window.scrollY > 0 || evento.touches.length !== 1) {
+            return;
+        }
+
+        inicioY = evento.touches[0].clientY;
+        tirando = true;
+
+    }, { passive: true });
+
+
+    document.addEventListener("touchmove", (evento) => {
+
+        if (!tirando) {
+            return;
+        }
+
+        distancia = evento.touches[0].clientY - inicioY;
+
+        if (distancia <= 0) {
+            indicador.style.height = "0px";
+            return;
+        }
+
+        /* Resistencia: cuanto más tiras, menos se mueve. */
+        const altura = Math.min(distancia * 0.45, 90);
+
+        indicador.style.height = altura + "px";
+        indicador.classList.toggle("listo", distancia > UMBRAL);
+
+    }, { passive: true });
+
+
+    document.addEventListener("touchend", () => {
+
+        if (!tirando) {
+            return;
+        }
+
+        tirando = false;
+
+        if (distancia > UMBRAL) {
+
+            indicador.classList.add("cargando");
+            indicador.style.height = "48px";
+
+            cargarDatos(true).finally(() => {
+                indicador.classList.remove("cargando", "listo");
+                indicador.style.height = "0px";
+            });
+
+        } else {
+
+            indicador.classList.remove("listo");
+            indicador.style.height = "0px";
+
+        }
+
+        distancia = 0;
+
+    });
+
+}
+
+
+/* =========================================================
+   AVATARES
+========================================================= */
+
+function iniciales(nombre) {
 
     if (!nombre) {
         return "?";
     }
 
+    const partes = String(nombre).trim().split(/\s+/);
 
-    const partes =
-        nombre
-            .trim()
-            .split(/\s+/);
-
-
-    if (
-        partes.length === 1
-    ) {
-
-        return partes[0]
-            .substring(0, 2)
-            .toUpperCase();
-
+    if (partes.length === 1) {
+        return partes[0].substring(0, 2).toUpperCase();
     }
 
-
-    return (
-
-        partes[0][0] +
-
-        partes[
-            partes.length - 1
-        ][0]
-
-    ).toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 
 }
 
 
-/* =========================================================
-   FOTOS DE JUGADORES
-========================================================= */
-
-/*
- * Genera la ruta a la foto de un jugador probando,
- * por orden, las extensiones definidas en
- * EXTENSIONES_FOTO.
- */
-
-function rutaFotoJugador(
-    nombre,
-    indiceExtension
-) {
-
-    const extension =
-        EXTENSIONES_FOTO[
-            indiceExtension
-        ];
-
-
-    return (
-
-        CARPETA_FOTOS_JUGADORES +
-
-        encodeURIComponent(
-            nombre
-        ) +
-
-        "." +
-
-        extension
-
-    );
-
+function rutaFoto(nombre, indice) {
+    return CARPETA_FOTOS + encodeURIComponent(nombre) + "." + EXTENSIONES_FOTO[indice];
 }
 
 
-/* =========================================================
-   AVATAR DE JUGADOR
-========================================================= */
-
-/*
- * Construye el círculo con la foto del jugador.
- *
- * Si el navegador no consigue cargarla porque no existe
- * ese archivo o no existe con esa extensión,
- * gestionarErrorFoto() prueba la siguiente extensión.
- *
- * Si ninguna funciona, se quedan visibles las iniciales.
- */
-
-function crearAvatarHTML(
-    nombre
-) {
-
-    const iniciales =
-        obtenerIniciales(
-            nombre
-        );
-
-
-    const nombreEscapado =
-        escaparHTML(
-            nombre
-        );
-
+function avatar(nombre, grande = false) {
 
     return `
-
-        <span class="player-avatar">
-
-            ${iniciales}
-
-            <img
-                src="${rutaFotoJugador(
-                    nombre,
-                    0
-                )}"
-                alt=""
-                loading="lazy"
-                data-nombre="${nombreEscapado}"
-                data-intento="0"
-                onerror="gestionarErrorFoto(this)"
-            >
-
+        <span class="avatar ${grande ? "avatar-l" : ""}">
+            ${iniciales(nombre)}
+            <img src="${rutaFoto(nombre, 0)}"
+                 alt=""
+                 loading="lazy"
+                 decoding="async"
+                 data-nombre="${escapar(nombre)}"
+                 data-intento="0"
+                 onerror="siguienteFoto(this)">
         </span>
-
     `;
 
 }
 
 
-/* =========================================================
-   ERROR DE FOTO
-========================================================= */
+/* Prueba la siguiente extensión; si no hay ninguna, deja las iniciales. */
+function siguienteFoto(img) {
 
-function gestionarErrorFoto(
-    img
-) {
+    const intento = parseInt(img.dataset.intento, 10) + 1;
 
-    const siguienteIntento =
-        parseInt(
-            img.dataset.intento,
-            10
-        ) + 1;
-
-
-    /*
-     * Todavía quedan extensiones por probar.
-     */
-
-    if (
-        siguienteIntento <
-        EXTENSIONES_FOTO.length
-    ) {
-
-        img.dataset.intento =
-            siguienteIntento;
-
-
-        img.src =
-            rutaFotoJugador(
-                img.dataset.nombre,
-                siguienteIntento
-            );
-
-
+    if (intento < EXTENSIONES_FOTO.length) {
+        img.dataset.intento = intento;
+        img.src = rutaFoto(img.dataset.nombre, intento);
         return;
-
     }
 
+    img.remove();
 
-    /*
-     * No hay foto para este jugador:
-     * ocultamos la imagen y se quedan visibles
-     * las iniciales de fondo.
-     */
+}
 
-    img.style.display =
-        "none";
+window.siguienteFoto = siguienteFoto;
+
+
+/* =========================================================
+   UTILIDADES
+========================================================= */
+
+const formateador = new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+
+
+function euros(valor) {
+
+    const numero = Number(valor) || 0;
+
+    /* Sin decimales si son cero: queda más limpio en móvil. */
+    if (Number.isInteger(numero)) {
+        return numero.toLocaleString("es-ES") + " €";
+    }
+
+    return formateador.format(numero);
 
 }
 
 
-/* =========================================================
-   SEGURIDAD HTML
-========================================================= */
+function aNumero(valor) {
 
-function escaparHTML(
-    texto
-) {
+    if (valor === null || valor === undefined || valor === "") {
+        return 0;
+    }
 
-    const div =
-        document.createElement(
-            "div"
-        );
+    if (typeof valor === "number") {
+        return valor;
+    }
 
+    let texto = String(valor)
+        .replace(/[€\s]/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".");
 
-    div.textContent =
-        texto === null ||
-        texto === undefined
-            ? ""
-            : String(texto);
+    const numero = parseFloat(texto);
 
-
-    return div.innerHTML;
+    return isNaN(numero) ? 0 : numero;
 
 }
 
 
-/* =========================================================
-   HORA ACTUAL
-========================================================= */
+function normalizar(texto) {
 
-function obtenerHoraActual() {
-
-    const ahora =
-        new Date();
-
-
-    return ahora.toLocaleTimeString(
-        "es-ES",
-        {
-            hour: "2-digit",
-            minute: "2-digit"
-        }
-    );
+    return String(texto)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 
 }
 
 
-/* =========================================================
-   ANIMACIÓN DE MARCADOR
-   CONTEO DE IMPORTES
-========================================================= */
+function escapar(texto) {
 
-function animarImporte(
-    idElemento,
-    valorFinalTexto
-) {
+    return String(texto === null || texto === undefined ? "" : texto)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 
-    const elemento =
-        document.getElementById(
-            idElemento
-        );
+}
 
+
+function plantillaVacio(icono, titulo, texto) {
+
+    return `
+        <div class="vacio">
+            <i class="bi ${icono}"></i>
+            <h3>${titulo}</h3>
+            <p>${texto}</p>
+        </div>
+    `;
+
+}
+
+
+/* Contador animado para las cifras grandes */
+function animarEuros(selector, valorFinal) {
+
+    const elemento = $(selector);
 
     if (!elemento) {
         return;
     }
 
+    const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const valorFinal =
-        parseFloat(
-            valorFinalTexto.replace(
-                ",",
-                "."
-            )
-        ) || 0;
-
-
-    const valorInicial =
-        0;
-
-
-    const duracion =
-        700;
-
-
-    const inicio =
-        performance.now();
-
-
-    function paso(
-        ahora
-    ) {
-
-        const progreso =
-            Math.min(
-                (ahora - inicio) /
-                duracion,
-                1
-            );
-
-
-        const facilitado =
-            1 -
-            Math.pow(
-                1 - progreso,
-                3
-            );
-
-
-        const valorActual =
-            valorInicial +
-            (
-                valorFinal -
-                valorInicial
-            ) *
-            facilitado;
-
-
-        elemento.textContent =
-            valorActual
-                .toFixed(2)
-                .replace(
-                    ".",
-                    ","
-                ) +
-            " €";
-
-
-        if (
-            progreso < 1
-        ) {
-
-            requestAnimationFrame(
-                paso
-            );
-
-        }
-
-    }
-
-
-    requestAnimationFrame(
-        paso
-    );
-
-}
-
-
-/* =========================================================
-   ANIMACIÓN DE MARCADOR
-   CONTEO DE ENTEROS
-========================================================= */
-
-function animarContadorEntero(
-    idElemento,
-    valorFinal,
-    sufijo
-) {
-
-    const elemento =
-        document.getElementById(
-            idElemento
-        );
-
-
-    if (!elemento) {
+    if (reducido) {
+        elemento.textContent = euros(valorFinal);
         return;
     }
 
+    const inicio = performance.now();
+    const duracion = 650;
 
-    const duracion =
-        700;
+    function paso(ahora) {
 
+        const avance = Math.min((ahora - inicio) / duracion, 1);
+        const suave = 1 - Math.pow(1 - avance, 3);
 
-    const inicio =
-        performance.now();
+        elemento.textContent = euros(valorFinal * suave);
 
-
-    function paso(
-        ahora
-    ) {
-
-        const progreso =
-            Math.min(
-                (ahora - inicio) /
-                duracion,
-                1
-            );
-
-
-        const facilitado =
-            1 -
-            Math.pow(
-                1 - progreso,
-                3
-            );
-
-
-        const valorActual =
-            Math.round(
-                valorFinal *
-                facilitado
-            );
-
-
-        elemento.textContent =
-            `${valorActual}${sufijo}`;
-
-
-        if (
-            progreso < 1
-        ) {
-
-            requestAnimationFrame(
-                paso
-            );
-
+        if (avance < 1) {
+            requestAnimationFrame(paso);
         }
 
     }
 
+    requestAnimationFrame(paso);
 
-    requestAnimationFrame(
-        paso
+}
+
+
+function marcarConexion(texto, tipo) {
+
+    const elemento = $("#estadoConexion");
+
+    elemento.className = "conexion conexion-" + tipo;
+    $("#estadoConexionTexto").textContent = texto;
+
+}
+
+
+function mostrarUltimaActualizacion(fecha, esCache) {
+
+    const hora = new Date(fecha).toLocaleTimeString("es-ES", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    $("#ultimaActualizacion").textContent = esCache
+        ? "Guardado a las " + hora
+        : "Actualizado a las " + hora;
+
+}
+
+
+function pintarErrorInicial() {
+
+    const error = plantillaVacio(
+        "bi-cloud-slash",
+        "No se pudieron cargar los datos",
+        "Revisa tu conexión y vuelve a intentarlo."
     );
+
+    $("#listaMorosos").innerHTML = error;
+    $("#listaJugadores").innerHTML = error;
+
+}
+
+
+let temporizadorAviso;
+
+function avisar(texto) {
+
+    const aviso = $("#aviso");
+
+    aviso.textContent = texto;
+    aviso.hidden = false;
+
+    clearTimeout(temporizadorAviso);
+    temporizadorAviso = setTimeout(() => {
+        aviso.hidden = true;
+    }, 2600);
 
 }
 
 
 /* =========================================================
-   ACTUALIZACIÓN AUTOMÁTICA
+   SERVICE WORKER (funcionamiento sin conexión)
 ========================================================= */
 
-/*
- * Actualizamos los datos cada 5 minutos.
- *
- * Así, si cambias Google Sheets,
- * la web terminará reflejando los cambios
- * automáticamente.
- */
+function registrarServiceWorker() {
 
-setInterval(
-    cargarDatos,
-    5 * 60 * 1000
-);
+    if (!("serviceWorker" in navigator)) {
+        return;
+    }
+
+    /* Solo funciona sobre HTTPS, como en GitHub Pages. */
+    if (location.protocol !== "https:" && location.hostname !== "localhost") {
+        return;
+    }
+
+    window.addEventListener("load", () => {
+        navigator.serviceWorker
+            .register("sw.js")
+            .catch((error) => console.warn("Service worker no registrado:", error));
+    });
+
+}

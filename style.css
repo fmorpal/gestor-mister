@@ -1,690 +1,794 @@
 /* =========================================================
-FUENTES
-========================================================= */
-
-@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap");
-
-/* =========================================================
-VARIABLES
-
-Paleta "Marcador nocturno": césped bajo focos de estadio.
+   FUERA DE JUEGO — Hoja de estilos
+   Diseño móvil primero. Probado en Chrome y Safari (iOS).
 ========================================================= */
 
 :root {
-    --color-fondo: #0d1712;
-    --color-fondo-2: #142219;
+    /* Chrome de la app: verde césped de noche */
+    --verde-900: #07130d;
+    --verde-800: #0a2e1c;
+    --verde-700: #0d3d24;
+    --cesped:    #2ba85a;
+    --cesped-claro: #45c774;
+    --oro:       #e3b23c;
+    --clay:      #d1483f;
 
-    --color-superficie: #ffffff;
-    --color-superficie-2: #f4f7f3;
+    /* Superficies */
+    --fondo:      #f2f5f2;
+    --superficie: #ffffff;
+    --superficie-2: #f7faf8;
+    --borde:      #e4eae5;
 
-    --color-principal: #0d3d24;
-    --color-principal-2: #0a2e1c;
+    /* Texto */
+    --texto:      #11201a;
+    --texto-2:    #63736b;
+    --texto-3:    #93a09a;
+    --sobre-verde: rgba(255, 255, 255, 0.72);
 
-    --color-cesped: #2ba85a;
-    --color-cesped-claro: #45c774;
+    /* Estados */
+    --exito:      #1e8f49;
+    --exito-suave:#e7f6ed;
+    --alerta:     #b8791a;
+    --alerta-suave:#fcf2de;
+    --error:      #c23c34;
+    --error-suave:#fbeae8;
 
-    --color-oro: #e3b23c;
-    --color-oro-fondo: #fbf1dc;
+    /* Tipografía */
+    --titular: "Oswald", "Helvetica Neue", Arial, sans-serif;
+    --cuerpo:  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-    --color-texto: #142219;
-    --color-texto-secundario: #62726a;
-    --color-texto-claro: #ffffff;
+    /* Formas */
+    --radio:   18px;
+    --radio-s: 12px;
+    --sombra:  0 1px 2px rgba(10, 30, 20, .06), 0 8px 24px -12px rgba(10, 30, 20, .18);
 
-    --color-borde: #e2e8e3;
-    --color-borde-oscuro: rgba(255, 255, 255, 0.12);
+    /* Alturas de las barras fijas */
+    --alto-topbar: 56px;
+    --alto-tabbar: 60px;
 
-    --color-exito: #2ba85a;
-    --color-exito-fondo: #e9f7ee;
+    /* Zonas seguras (notch, barra de gestos) */
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left:   env(safe-area-inset-left, 0px);
+    --safe-right:  env(safe-area-inset-right, 0px);
+}
 
-    --color-pendiente: #d1483f;
-    --color-pendiente-fondo: #fbeae8;
+@media (prefers-color-scheme: dark) {
+    :root {
+        --fondo:      #0b1410;
+        --superficie: #13201a;
+        --superficie-2: #182821;
+        --borde:      #23352c;
 
-    --color-aviso: #e3b23c;
-    --color-aviso-fondo: #fbf1dc;
+        --texto:      #eaf2ed;
+        --texto-2:    #9aaba2;
+        --texto-3:    #6d7f77;
 
-    --fuente-titular: "Oswald", "Segoe UI", sans-serif;
-    --fuente-cuerpo: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --fuente-marcador: "JetBrains Mono", "Courier New", monospace;
+        --exito-suave: #12331f;
+        --alerta-suave:#33280f;
+        --error-suave: #3a1c19;
+        --exito:  #4cc47c;
+        --alerta: #e3b23c;
+        --error:  #f0706a;
 
-    --sombra: 0 0.5rem 1.5rem rgba(10, 25, 15, 0.08);
-    --sombra-hover: 0 0.9rem 2rem rgba(10, 25, 15, 0.14);
-
-    --radio: 1rem;
-    --radio-pequeno: 0.65rem;
-
-    --velocidad: 0.2s;
+        --sombra: 0 1px 2px rgba(0, 0, 0, .4);
+    }
 }
 
 /* =========================================================
-GENERAL
+   BASE
 ========================================================= */
 
-* {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
 }
 
 html {
-    scroll-behavior: smooth;
-}
-
-@media (prefers-reduced-motion: reduce) {
-
-    html {
-        scroll-behavior: auto;
-    }
-
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.001ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.001ms !important;
-        scroll-behavior: auto !important;
-    }
+    /* Safari: evita que el texto crezca al girar el móvil */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 body {
     margin: 0;
-    background: var(--color-superficie-2);
-    color: var(--color-texto);
-    font-family: var(--fuente-cuerpo);
-    line-height: 1.5;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: var(--cuerpo);
+    font-size: 16px;
+    line-height: 1.45;
+
+    /* Quita el flash gris al tocar en Android */
+    -webkit-tap-highlight-color: transparent;
+
+    /* Nada de scroll lateral en móvil */
+    overflow-x: hidden;
+
+    -webkit-font-smoothing: antialiased;
 }
 
-a {
-    text-decoration: none;
+/* El rebote de iOS muestra el color de la barra, no blanco */
+html {
+    background: var(--fondo);
 }
 
-section {
-    scroll-margin-top: 5rem;
+h1, h2, h3 {
+    font-family: var(--titular);
+    font-weight: 600;
+    letter-spacing: .01em;
+    margin: 0;
 }
 
-h1,
-h2,
-h3 {
-    font-family: var(--fuente-titular);
+button,
+input {
+    font-family: inherit;
+    font-size: 1rem;
+    color: inherit;
+}
+
+button {
+    /* Sin retardo de 300 ms en el toque */
+    touch-action: manipulation;
+    cursor: pointer;
+    border: 0;
+    background: none;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 :focus-visible {
-    outline: 2px solid var(--color-cesped);
+    outline: 2px solid var(--cesped);
     outline-offset: 2px;
+    border-radius: 6px;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* =========================================================
-NAVBAR
+   BARRA SUPERIOR
 ========================================================= */
 
-.navbar {
-    background: var(--color-principal-2);
-    min-height: 4.2rem;
-    box-shadow: 0 0.25rem 1rem rgba(5, 15, 9, 0.35);
+.topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+
+    padding-top: var(--safe-top);
+
+    background: var(--verde-800);
+    color: #fff;
+
+    /* Safari necesita el prefijo para el desenfoque */
+    -webkit-backdrop-filter: saturate(160%) blur(12px);
+    backdrop-filter: saturate(160%) blur(12px);
 }
 
-.navbar-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-
-    color: #ffffff !important;
-
-    font-family: var(--fuente-titular);
-    font-size: 1.25rem;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
-}
-
-.navbar-brand i {
-    color: var(--color-oro);
-    font-size: 1.3rem;
-}
-
-.navbar-nav {
-    gap: 0.3rem;
-}
-
-.nav-link {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-
-    color: rgba(255, 255, 255, 0.68) !important;
-
-    padding: 0.6rem 0.95rem !important;
-
-    border-radius: var(--radio-pequeno);
-    border-bottom: 2px solid transparent;
-
-    font-size: 0.9rem;
-    font-weight: 500;
-
-    transition:
-        background-color var(--velocidad) ease,
-        color var(--velocidad) ease,
-        border-color var(--velocidad) ease;
-}
-
-.nav-link:hover {
-    color: #ffffff !important;
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.nav-link.active {
-    border-bottom-color: var(--color-cesped-claro);
-    color: #ffffff !important;
-}
-
-.navbar-toggler {
-    border-color: rgba(255, 255, 255, 0.25);
-}
-
-.navbar-toggler:focus {
-    box-shadow: none;
-}
-
-/* =========================================================
-HERO
-========================================================= */
-
-.hero {
-    position: relative;
-    overflow: hidden;
-
-    background:
-        radial-gradient(
-            circle at 15% -10%,
-            rgba(255, 255, 255, 0.07),
-            transparent 55%
-        ),
-        linear-gradient(
-            160deg,
-            var(--color-principal-2),
-            var(--color-fondo) 85%
-        );
-
-    color: var(--color-texto-claro);
-
-    padding: 3rem 0;
-}
-
-.hero::after {
-    content: "";
-    position: absolute;
-    inset: auto -20% -60% auto;
-
-    width: 26rem;
-    height: 26rem;
-
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 50%;
-}
-
-.hero-content {
-    position: relative;
+.topbar-inner {
+    height: var(--alto-topbar);
+    padding-left: max(16px, var(--safe-left));
+    padding-right: max(16px, var(--safe-right));
 
     display: flex;
     align-items: center;
     justify-content: space-between;
-
-    gap: 2rem;
+    gap: 12px;
 }
 
-.hero-badge {
-    display: inline-flex;
+.brand {
+    display: flex;
     align-items: center;
-    gap: 0.5rem;
-
-    margin-bottom: 0.9rem;
-    padding: 0.4rem 0.8rem;
-
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 2rem;
-
-    background: rgba(255, 255, 255, 0.06);
-
-    color: rgba(255, 255, 255, 0.82);
-
-    font-size: 0.76rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
+    gap: 10px;
+    min-width: 0;
 }
 
-.hero-badge .punto-en-vivo {
-    display: inline-block;
+.brand-escudo {
+    width: 34px;
+    height: 34px;
+    flex: none;
 
-    width: 0.5rem;
-    height: 0.5rem;
+    display: grid;
+    place-items: center;
 
-    border-radius: 50%;
-
-    background: var(--color-cesped-claro);
-
-    animation: foco-pulso 2s ease-in-out infinite;
-}
-
-.hero h1 {
-    margin: 0 0 0.6rem;
-
-    font-size: clamp(1.9rem, 5vw, 3rem);
-    font-weight: 600;
-
-    letter-spacing: 0.005em;
-    text-transform: uppercase;
-}
-
-.hero p {
-    max-width: 34rem;
-
-    margin: 0;
-
-    color: rgba(255, 255, 255, 0.65);
-
+    border-radius: 10px;
+    background: rgba(227, 178, 60, .16);
+    color: var(--oro);
     font-size: 1rem;
 }
 
-.hero-icon {
+.brand-texto {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    line-height: 1.15;
+    min-width: 0;
+}
 
-    position: relative;
+.brand-texto strong {
+    font-family: var(--titular);
+    font-size: 1.02rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-    width: 5.5rem;
-    height: 5.5rem;
+.brand-texto small {
+    font-size: .74rem;
+    color: var(--sobre-verde);
+}
 
-    flex-shrink: 0;
+.boton-icono {
+    width: 40px;
+    height: 40px;
+    flex: none;
 
-    border: 1px solid rgba(227, 178, 60, 0.35);
+    display: grid;
+    place-items: center;
+
     border-radius: 50%;
+    background: rgba(255, 255, 255, .1);
+    color: #fff;
+    font-size: 1.05rem;
 
-    background: rgba(227, 178, 60, 0.08);
+    transition: background .18s ease, transform .18s ease;
+}
 
-    color: var(--color-oro);
+.boton-icono:active {
+    transform: scale(.92);
+    background: rgba(255, 255, 255, .2);
+}
 
-    font-size: 2.1rem;
+.boton-icono.girando i {
+    animation: girar .8s linear infinite;
+}
 
-    animation: balon-flota 5s ease-in-out infinite;
+@keyframes girar {
+    to { transform: rotate(360deg); }
+}
+
+/* Tirar para actualizar */
+
+.ptr {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--safe-top) + var(--alto-topbar));
+
+    display: grid;
+    place-items: center;
+
+    height: 0;
+    overflow: hidden;
+
+    color: var(--sobre-verde);
+    background: var(--verde-800);
+    font-size: 1.1rem;
+}
+
+.ptr i {
+    transition: transform .2s ease;
+}
+
+.ptr.listo i {
+    transform: rotate(180deg);
+    color: var(--cesped-claro);
+}
+
+.ptr.cargando i {
+    animation: girar .8s linear infinite;
 }
 
 /* =========================================================
-CABECERAS DE SECCIÓN
+   CONTENIDO Y VISTAS
 ========================================================= */
 
-.section-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
+#contenido {
+    padding-top: calc(var(--safe-top) + var(--alto-topbar) + 14px);
+    padding-bottom: calc(var(--safe-bottom) + var(--alto-tabbar) + 24px);
+    padding-left: max(14px, var(--safe-left));
+    padding-right: max(14px, var(--safe-right));
 
-    gap: 1.5rem;
-
-    margin-bottom: 1.25rem;
+    max-width: 680px;
+    margin: 0 auto;
 }
 
-.section-subtitle {
+.vista {
+    display: none;
+}
+
+.vista-activa {
     display: block;
-
-    margin-bottom: 0.3rem;
-
-    color: var(--color-texto-secundario);
-
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
+    animation: entrar .22s ease both;
 }
 
-.section-header h2 {
-    margin: 0;
-
-    color: var(--color-principal);
-
-    font-size: 1.4rem;
-    font-weight: 600;
-
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+@keyframes entrar {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
 }
 
-/* =========================================================
-ESTADO DE CONEXIÓN
-========================================================= */
-
-.connection-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-
-    padding: 0.4rem 0.7rem;
-
-    border-radius: 2rem;
-
-    background: var(--color-superficie);
-
-    color: var(--color-texto-secundario);
-
-    box-shadow: 0 0.2rem 0.75rem rgba(15, 23, 42, 0.05);
-
-    font-size: 0.78rem;
-    font-weight: 600;
-
-    transition: color var(--velocidad) ease;
+.titulo-bloque {
+    font-size: 1.05rem;
+    margin: 26px 0 10px;
 }
 
-.connection-status i {
-    font-size: 0.85rem;
+.nota-pie {
+    margin: 22px 0 0;
+    text-align: center;
+    font-size: .78rem;
+    color: var(--texto-3);
 }
 
-.connection-status.status-online {
-    color: var(--color-exito);
-}
-
-.connection-status.status-online i {
-    animation: latido 2.4s ease-in-out infinite;
-}
-
-.connection-status.status-error {
-    color: var(--color-pendiente);
-}
-
-.connection-status.status-loading i {
-    animation: girar 1s linear infinite;
+.nota-pie i {
+    color: var(--cesped);
 }
 
 /* =========================================================
-TARJETAS DE ESTADÍSTICAS
+   MARCADOR (bloque principal del resumen)
 ========================================================= */
 
-.stat-card {
-    display: flex;
-    align-items: center;
+.marcador {
+    position: relative;
+    overflow: hidden;
 
-    gap: 1rem;
-
-    height: 100%;
-
-    padding: 1.15rem;
-
-    border: 1px solid var(--color-borde);
+    padding: 18px 18px 20px;
     border-radius: var(--radio);
 
-    background: var(--color-superficie);
-
+    background: linear-gradient(155deg, var(--verde-700) 0%, var(--verde-900) 100%);
+    color: #fff;
     box-shadow: var(--sombra);
-
-    opacity: 0;
-
-    animation: aparecer 0.5s ease forwards;
-
-    transition:
-        transform var(--velocidad) ease,
-        box-shadow var(--velocidad) ease;
 }
 
-.stat-card:active {
-    transform: scale(0.98);
+/* Líneas de campo como marca de agua */
+.marcador::after {
+    content: "";
+    position: absolute;
+    right: -40px;
+    top: -40px;
+    width: 180px;
+    height: 180px;
+    border: 2px solid rgba(255, 255, 255, .06);
+    border-radius: 50%;
+    pointer-events: none;
 }
 
-@media (hover: hover) {
-
-    .stat-card:hover {
-        transform: translateY(-0.15rem);
-        box-shadow: var(--sombra-hover);
-    }
-}
-
-.stat-icon {
+.marcador-cabecera {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 10px;
 
-    width: 2.9rem;
-    height: 2.9rem;
-
-    flex-shrink: 0;
-
-    border-radius: 0.8rem;
-
-    background: var(--color-principal);
-
-    color: var(--color-oro);
-
-    font-size: 1.15rem;
+    font-size: .8rem;
+    color: var(--sobre-verde);
 }
 
-.stat-label {
-    display: block;
+.marcador-cifra {
+    position: relative;
+    margin: 6px 0 14px;
 
-    margin-bottom: 0.15rem;
-
-    color: var(--color-texto-secundario);
-
-    font-size: 0.78rem;
-    font-weight: 600;
-}
-
-.stat-card strong {
-    display: block;
-
-    color: var(--color-principal);
-
-    font-family: var(--fuente-marcador);
-    font-size: 1.3rem;
+    font-family: var(--titular);
+    font-size: clamp(2.6rem, 14vw, 3.4rem);
     font-weight: 700;
+    line-height: 1;
+    letter-spacing: -.01em;
+
     font-variant-numeric: tabular-nums;
 }
 
-/* =========================================================
-TABLAS
-========================================================= */
-
-.table-container {
+.barra-bote {
+    position: relative;
+    height: 6px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .14);
     overflow: hidden;
-
-    border: 1px solid var(--color-borde);
-    border-radius: var(--radio);
-
-    background: var(--color-superficie);
-
-    box-shadow: var(--sombra);
 }
 
-.table {
-    margin: 0;
-
-    --bs-table-bg: transparent;
+.barra-bote span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--cesped), var(--cesped-claro));
+    transition: width .9s cubic-bezier(.22, 1, .36, 1);
 }
 
-.players-table thead,
-.jornada-table thead {
-    background: var(--color-principal-2);
+.marcador-pie {
+    position: relative;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+
+    margin-top: 12px;
+    font-size: .82rem;
+    color: var(--sobre-verde);
 }
 
-.players-table thead th,
-.jornada-table thead th {
-    padding: 1rem;
-
-    border: 0;
-
-    color: rgba(255, 255, 255, 0.88);
-
-    font-size: 0.74rem;
+.marcador-pie b {
+    color: #fff;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
 
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+/* Estado de conexión */
 
+.conexion {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 3px 9px 3px 7px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .1);
+
+    font-size: .72rem;
     white-space: nowrap;
 }
 
-.players-table tbody td,
-.jornada-table tbody td {
-    padding: 1rem;
-
-    border-color: var(--color-borde);
-
-    color: var(--color-texto);
-
-    font-size: 0.9rem;
-
-    vertical-align: middle;
+.conexion-punto {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
 }
 
-.players-table tbody tr,
-.jornada-table tbody tr {
-    opacity: 0;
+.conexion-cargando { color: var(--oro); }
+.conexion-cargando .conexion-punto { animation: latido 1.1s ease-in-out infinite; }
 
-    transform: translateY(0.4rem);
+.conexion-online  { color: var(--cesped-claro); }
+.conexion-error   { color: #ff8b84; }
 
-    animation: aparecer-fila 0.4s ease forwards;
-
-    transition: background-color var(--velocidad) ease;
-}
-
-@media (hover: hover) {
-
-    .players-table tbody tr:hover,
-    .jornada-table tbody tr:hover {
-        background: var(--color-superficie-2);
-    }
-}
-
-.players-table tbody tr:last-child td,
-.jornada-table tbody tr:last-child td {
-    border-bottom: 0;
+@keyframes latido {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: .25; }
 }
 
 /* =========================================================
-CELDA DE JUGADOR
+   REJILLA DE DATOS
 ========================================================= */
 
-.player-name {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-
-    font-weight: 600;
+.rejilla-datos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
 }
 
-.player-avatar {
-    position: relative;
+.dato {
+    padding: 13px 14px;
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+}
 
+.dato-etiqueta {
+    display: block;
+    font-size: .74rem;
+    color: var(--texto-2);
+}
+
+.dato-valor {
+    display: block;
+    margin-top: 2px;
+
+    font-family: var(--titular);
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.dato-pie {
+    display: block;
+    font-size: .72rem;
+    color: var(--texto-3);
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =========================================================
+   LISTA DE JUGADORES
+========================================================= */
+
+.lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fila {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 12px;
+    width: 100%;
 
-    width: 2.2rem;
-    height: 2.2rem;
+    padding: 11px 12px;
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
 
-    flex-shrink: 0;
+    text-align: left;
+    transition: transform .14s ease, background .14s ease;
+}
+
+.fila:active {
+    transform: scale(.985);
+    background: var(--superficie-2);
+}
+
+.fila-datos {
+    flex: 1;
+    min-width: 0;
+}
+
+.fila-nombre {
+    display: block;
+    font-weight: 600;
+    font-size: .96rem;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fila-sub {
+    display: block;
+    margin-top: 1px;
+    font-size: .76rem;
+    color: var(--texto-2);
+}
+
+.fila-cifra {
+    flex: none;
+    text-align: right;
+}
+
+.fila-importe {
+    display: block;
+    font-weight: 700;
+    font-size: .98rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.fila-etiqueta {
+    display: block;
+    font-size: .7rem;
+    color: var(--texto-3);
+}
+
+.importe-deuda    { color: var(--error); }
+.importe-ok       { color: var(--exito); }
+.importe-neutro   { color: var(--texto-2); }
+
+/* Avatar */
+
+.avatar {
+    position: relative;
+    flex: none;
+
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
     overflow: hidden;
 
-    border-radius: 50%;
-    border: 2px solid var(--color-oro);
+    display: grid;
+    place-items: center;
 
-    background: var(--color-principal);
+    background: var(--verde-700);
+    color: #fff;
 
-    color: #ffffff;
-
-    font-family: var(--fuente-marcador);
-    font-size: 0.72rem;
-    font-weight: 700;
+    font-family: var(--titular);
+    font-size: .88rem;
+    font-weight: 600;
+    letter-spacing: .02em;
 }
 
-/*
- * Foto del jugador: si existe un archivo en /jugadores/
- * con su nombre, se recorta en círculo encima de las
- * iniciales. Si no existe, gestionarErrorFoto() la oculta y
- * se quedan visibles las iniciales.
- */
-
-.player-avatar img {
+.avatar img {
     position: absolute;
     inset: 0;
-
     width: 100%;
     height: 100%;
-
     object-fit: cover;
-    object-position: center top;
 }
 
-/* =========================================================
-ESTADOS
-========================================================= */
+.avatar-l {
+    width: 62px;
+    height: 62px;
+    font-size: 1.2rem;
+}
 
-.status-badge {
+/* Medalla de posición en la jornada */
+
+.puesto {
+    flex: none;
+    width: 26px;
+    text-align: center;
+
+    font-family: var(--titular);
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--texto-3);
+}
+
+.puesto-1 { color: var(--oro); }
+.puesto-2 { color: #9fb0a7; }
+.puesto-3 { color: #c08457; }
+
+/* Distintivos de estado */
+
+.distintivo {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 5px;
 
-    padding: 0.4rem 0.65rem;
+    padding: 3px 9px;
+    border-radius: 99px;
 
-    border-radius: 2rem;
-
-    font-size: 0.74rem;
-    font-weight: 700;
-
+    font-size: .72rem;
+    font-weight: 600;
     white-space: nowrap;
 }
 
-.status-badge.paid {
-    background: var(--color-exito-fondo);
-    color: var(--color-exito);
+.distintivo-ok {
+    background: var(--exito-suave);
+    color: var(--exito);
 }
 
-.status-badge.pending {
-    background: var(--color-pendiente-fondo);
-    color: var(--color-pendiente);
+.distintivo-parcial {
+    background: var(--alerta-suave);
+    color: var(--alerta);
 }
 
-.status-badge.partial {
-    background: var(--color-aviso-fondo);
-    color: #93711c;
+.distintivo-no {
+    background: var(--error-suave);
+    color: var(--error);
 }
 
-/* =========================================================
-CANTIDADES
-========================================================= */
+/* Barra de progreso de pago dentro de la fila */
 
-.amount {
-    font-family: var(--fuente-marcador);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
+.progreso {
+    display: block;
+    height: 4px;
+    margin-top: 6px;
+    border-radius: 99px;
+    background: var(--borde);
+    overflow: hidden;
 }
 
-.amount-positive {
-    color: var(--color-exito);
-}
-
-.amount-negative {
-    color: var(--color-pendiente);
-}
-
-.amount-neutral {
-    color: var(--color-texto);
+.progreso span {
+    display: block;
+    height: 100%;
+    border-radius: 99px;
+    background: var(--cesped);
 }
 
 /* =========================================================
-JORNADAS - TIRA DE FICHAS DESLIZABLE
+   BUSCADOR Y CHIPS
 ========================================================= */
 
-.jornada-selector-wrapper {
+.buscador {
     position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 
-    margin: -0.2rem -1rem 0;
+    padding: 0 12px;
+    height: 44px;
+
+    border-radius: 99px;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    color: var(--texto-3);
 }
+
+.buscador input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+
+    border: 0;
+    background: none;
+    color: var(--texto);
+
+    /* 16px evita que Safari haga zoom al enfocar */
+    font-size: 16px;
+
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.buscador input::placeholder {
+    color: var(--texto-3);
+}
+
+.buscador input:focus {
+    outline: none;
+}
+
+/* Safari pinta una X propia en los search; la quitamos */
+.buscador input::-webkit-search-decoration,
+.buscador input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.buscador-limpiar {
+    color: var(--texto-3);
+    font-size: 1rem;
+    padding: 4px;
+}
+
+.chips {
+    display: flex;
+    gap: 8px;
+
+    margin: 12px -14px 14px;
+    padding: 0 14px 2px;
+
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+}
+
+.chips::-webkit-scrollbar {
+    display: none;
+}
+
+.chip {
+    flex: none;
+    padding: 7px 14px;
+
+    border-radius: 99px;
+    border: 1px solid var(--borde);
+    background: var(--superficie);
+    color: var(--texto-2);
+
+    font-size: .84rem;
+    font-weight: 500;
+
+    transition: background .16s ease, color .16s ease, border-color .16s ease;
+}
+
+.chip-activo {
+    background: var(--verde-700);
+    border-color: var(--verde-700);
+    color: #fff;
+}
+
+/* =========================================================
+   JORNADAS
+========================================================= */
 
 .jornada-pills {
     display: flex;
-    gap: 0.5rem;
+    gap: 8px;
 
-    padding: 0.2rem 1rem 0.6rem;
+    margin: 0 -14px 14px;
+    padding: 2px 14px 6px;
 
     overflow-x: auto;
-
-    scrollbar-width: none;
     scroll-snap-type: x proximity;
+    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
 }
 
 .jornada-pills::-webkit-scrollbar {
@@ -692,953 +796,358 @@ JORNADAS - TIRA DE FICHAS DESLIZABLE
 }
 
 .jornada-pill {
-    flex-shrink: 0;
+    flex: none;
+    scroll-snap-align: center;
 
-    scroll-snap-align: start;
+    width: 52px;
+    height: 58px;
 
-    padding: 0.55rem 1.05rem;
-
-    border: 1px solid var(--color-borde);
-    border-radius: 2rem;
-
-    background: var(--color-superficie);
-    cursor: pointer;
-
-    color: var(--color-texto-secundario);
-
-    font-family: var(--fuente-marcador);
-    font-size: 0.85rem;
-    font-weight: 700;
-
-    transition:
-        background-color var(--velocidad) ease,
-        border-color var(--velocidad) ease,
-        color var(--velocidad) ease,
-        transform 0.1s ease;
-}
-
-.jornada-pill:active {
-    transform: scale(0.95);
-}
-
-.jornada-pill.activa {
-    border-color: var(--color-principal);
-
-    background: var(--color-principal);
-
-    color: var(--color-oro);
-}
-
-/* =========================================================
-INFORMACIÓN DE JORNADA
-========================================================= */
-
-.jornada-info {
-    min-height: 9rem;
-
-    border: 1px solid var(--color-borde);
-    border-radius: var(--radio);
-
-    background: var(--color-superficie);
-
-    box-shadow: var(--sombra);
-
-    animation: aparecer 0.35s ease;
-}
-
-.empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 1px;
 
-    min-height: 9rem;
+    border-radius: 14px;
+    border: 1px solid var(--borde);
+    background: var(--superficie);
+    color: var(--texto-2);
 
-    padding: 2rem;
-
-    text-align: center;
+    transition: transform .16s ease, background .16s ease;
 }
 
-.empty-state > i {
-    margin-bottom: 0.75rem;
-
-    color: #9ca3af;
-
-    font-size: 2rem;
+.jornada-pill small {
+    font-size: .62rem;
+    text-transform: lowercase;
+    color: var(--texto-3);
 }
 
-.empty-state h3 {
-    margin: 0 0 0.35rem;
-
-    color: var(--color-principal);
-
-    font-size: 1rem;
+.jornada-pill b {
+    font-family: var(--titular);
+    font-size: 1.2rem;
     font-weight: 600;
-    text-transform: uppercase;
+    line-height: 1;
 }
 
-.empty-state p {
-    max-width: 28rem;
-
-    margin: 0;
-
-    color: var(--color-texto-secundario);
-
-    font-size: 0.85rem;
+.jornada-pill .punto {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--borde);
 }
 
-/* =========================================================
-CARGANDO
-========================================================= */
+.jornada-pill.completa .punto { background: var(--cesped); }
+.jornada-pill.parcial  .punto { background: var(--oro); }
 
-.loading-cell {
-    padding: 2.5rem !important;
-
-    color: var(--color-texto-secundario) !important;
-
-    text-align: center;
+.jornada-pill:active {
+    transform: scale(.94);
 }
 
-.loading-cell i {
-    display: inline-block;
-
-    margin-right: 0.4rem;
-
-    animation: girar 1s linear infinite;
+.jornada-pill.activa {
+    background: var(--verde-700);
+    border-color: var(--verde-700);
+    color: #fff;
 }
 
-@keyframes girar {
-
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
+.jornada-pill.activa small,
+.jornada-pill.activa .punto {
+    color: rgba(255, 255, 255, .7);
 }
 
-/* =========================================================
-ÚLTIMA ACTUALIZACIÓN
-========================================================= */
-
-.last-update {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    gap: 0.45rem;
-
-    margin-top: 2rem;
-    padding: 1rem;
-
-    color: var(--color-texto-secundario);
-
-    font-size: 0.75rem;
-
-    text-align: center;
-}
-
-.last-update i {
-    color: var(--color-exito);
-}
-
-/* =========================================================
-FOOTER
-========================================================= */
-
-footer {
-    margin-top: 3rem;
-
-    background: var(--color-principal-2);
-
-    color: rgba(255, 255, 255, 0.55);
-}
-
-.footer-content {
+.jornada-resumen {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
 
-    gap: 1rem;
+    padding: 14px 16px;
+    margin-bottom: 12px;
 
-    padding: 1.5rem 0;
-
-    font-size: 0.78rem;
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
 }
 
-.footer-content span:first-child {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
+.jornada-resumen h2 {
+    font-size: 1.15rem;
+}
 
-    color: rgba(255, 255, 255, 0.9);
-
-    font-family: var(--fuente-titular);
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+.jornada-resumen p {
+    margin: 2px 0 0;
+    font-size: .78rem;
+    color: var(--texto-2);
 }
 
 /* =========================================================
-ANIMACIONES
+   ESTADOS VACÍOS Y CARGA
 ========================================================= */
 
-@keyframes foco-pulso {
+.vacio {
+    padding: 38px 20px;
+    text-align: center;
+    color: var(--texto-2);
 
-    0%,
-    100% {
-        box-shadow: 0 0 0 0 rgba(69, 199, 116, 0.55);
-    }
-
-    50% {
-        box-shadow: 0 0 0 0.35rem rgba(69, 199, 116, 0);
-    }
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px dashed var(--borde);
 }
 
-@keyframes balon-flota {
-
-    0%,
-    100% {
-        transform: translateY(0) rotate(0deg);
-    }
-
-    50% {
-        transform: translateY(-0.4rem) rotate(8deg);
-    }
+.vacio i {
+    font-size: 1.8rem;
+    color: var(--texto-3);
 }
 
-@keyframes latido {
+.vacio h3 {
+    margin: 10px 0 4px;
+    font-size: 1.05rem;
+    color: var(--texto);
+}
 
-    0%,
-    100% {
-        transform: scale(1);
-    }
+.vacio p {
+    margin: 0;
+    font-size: .85rem;
+}
 
-    50% {
-        transform: scale(1.2);
-    }
+.esqueleto {
+    height: 66px;
+    border-radius: var(--radio-s);
+    background: linear-gradient(
+        100deg,
+        var(--superficie) 30%,
+        var(--superficie-2) 50%,
+        var(--superficie) 70%
+    );
+    background-size: 220% 100%;
+    animation: brillo 1.3s ease-in-out infinite;
+}
+
+@keyframes brillo {
+    from { background-position: 180% 0; }
+    to   { background-position: -60% 0; }
+}
+
+/* =========================================================
+   BARRA DE PESTAÑAS INFERIOR
+========================================================= */
+
+.tabbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+
+    display: flex;
+
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+
+    background: color-mix(in srgb, var(--superficie) 88%, transparent);
+    border-top: 1px solid var(--borde);
+
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    backdrop-filter: saturate(180%) blur(16px);
+}
+
+/* Si el navegador no soporta color-mix (Safari antiguo) */
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+    .tabbar { background: var(--superficie); }
+}
+
+.tab {
+    flex: 1;
+    height: var(--alto-tabbar);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+
+    color: var(--texto-3);
+    font-size: .68rem;
+    font-weight: 500;
+
+    transition: color .16s ease;
+}
+
+.tab i {
+    font-size: 1.2rem;
+}
+
+.tab span {
+    line-height: 1;
+}
+
+.tab-activo {
+    color: var(--verde-700);
+}
+
+@media (prefers-color-scheme: dark) {
+    .tab-activo { color: var(--cesped-claro); }
+}
+
+.tab:active i {
+    transform: scale(.9);
+}
+
+/* =========================================================
+   PANEL DESLIZANTE (ficha de jugador)
+========================================================= */
+
+.sheet-fondo {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+
+    background: rgba(5, 15, 10, .5);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+
+    animation: aparecer .2s ease both;
 }
 
 @keyframes aparecer {
-
-    from {
-        opacity: 0;
-        transform: translateY(0.5rem);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
-@keyframes aparecer-fila {
+.sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 41;
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    max-height: 86vh;
+    max-height: 86dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+
+    padding: 8px 18px calc(24px + var(--safe-bottom));
+    border-radius: 24px 24px 0 0;
+
+    background: var(--superficie);
+    box-shadow: 0 -12px 40px rgba(5, 20, 12, .3);
+
+    animation: subir .28s cubic-bezier(.22, 1, .36, 1) both;
 }
 
-/* =========================================================
-RESPONSIVE - TABLET
-========================================================= */
-
-@media (max-width: 991.98px) {
-
-    .hero {
-        padding: 2.6rem 0;
-    }
-
-    .hero-icon {
-        width: 4.8rem;
-        height: 4.8rem;
-    }
-
-    .section-header {
-        align-items: flex-start;
-        flex-direction: column;
-    }
+@keyframes subir {
+    from { transform: translateY(100%); }
+    to   { transform: none; }
 }
 
-/* =========================================================
-RESPONSIVE - MÓVIL
-========================================================= */
+.sheet-tirador {
+    display: block;
+    width: 42px;
+    height: 5px;
+    margin: 6px auto 14px;
 
-@media (max-width: 767.98px) {
-
-    .hero {
-        padding: 2.2rem 0;
-    }
-
-    .hero-content {
-        align-items: flex-start;
-    }
-
-    .hero-icon {
-        display: none;
-    }
-
-    .hero h1 {
-        font-size: 1.7rem;
-    }
-
-    .hero p {
-        font-size: 0.9rem;
-    }
-
-    .section-header {
-        margin-bottom: 1rem;
-    }
-
-    .section-header h2 {
-        font-size: 1.15rem;
-    }
-
-    .connection-status {
-        align-self: flex-start;
-    }
-
-    .stat-card {
-        padding: 0.95rem;
-    }
-
-    .stat-icon {
-        width: 2.6rem;
-        height: 2.6rem;
-
-        font-size: 1.05rem;
-    }
-
-    .stat-card strong {
-        font-size: 1.1rem;
-    }
-
-    .players-table thead th,
-    .players-table tbody td,
-    .jornada-table thead th,
-    .jornada-table tbody td {
-        padding: 0.8rem;
-    }
-
-    .footer-content {
-        align-items: flex-start;
-        flex-direction: column;
-    }
+    border-radius: 99px;
+    background: var(--borde);
 }
 
-/* =========================================================
-RESPONSIVE - MÓVIL PEQUEÑO
-========================================================= */
-
-@media (max-width: 575.98px) {
-
-    main.container {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-
-    .hero h1 {
-        font-size: 1.5rem;
-    }
-
-    .stat-card {
-        min-height: 4.6rem;
-    }
-
-    .last-update {
-        align-items: flex-start;
-        flex-wrap: wrap;
-    }
-}
-
-/* =========================================================
-TABLAS EN MÓVIL - FORMATO TARJETA
-========================================================= */
-
-@media (max-width: 767.98px) {
-
-    /* -----------------------------------------------------
-       TABLA DE JUGADORES
-    ----------------------------------------------------- */
-
-    .players-table {
-        width: 100%;
-        min-width: 0 !important;
-
-        border-collapse: separate;
-        border-spacing: 0 0.75rem;
-
-        table-layout: fixed;
-    }
-
-    .players-table thead {
-        display: none;
-    }
-
-    .players-table tbody {
-        display: block;
-        width: 100%;
-    }
-
-    .players-table tbody tr {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0;
-
-        width: 100%;
-
-        margin: 0;
-        padding: 0.9rem;
-
-        border: 1px solid var(--color-borde);
-        border-left: 3px solid var(--color-cesped);
-        border-radius: var(--radio);
-
-        background: var(--color-superficie);
-
-        box-shadow: var(--sombra);
-
-        transition:
-            transform var(--velocidad) ease,
-            box-shadow var(--velocidad) ease;
-    }
-
-    .players-table tbody tr:active {
-        transform: scale(0.99);
-    }
-
-    .players-table tbody td {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-
-        min-width: 0;
-        width: 100%;
-
-        padding: 0.65rem 0;
-
-        border: 0;
-        border-bottom: 1px solid var(--color-borde);
-
-        font-size: 0.85rem;
-
-        text-align: right;
-    }
-
-    /* -----------------------------------------------------
-       NOMBRE DEL JUGADOR
-       Ocupa toda la primera fila
-    ----------------------------------------------------- */
-
-    .players-table tbody td:first-child {
-        grid-column: 1 / -1;
-
-        justify-content: flex-start;
-
-        padding-top: 0;
-        padding-bottom: 0.85rem;
-
-        margin-bottom: 0.2rem;
-
-        border-bottom: 1px solid var(--color-borde);
-
-        text-align: left;
-    }
-
-    .players-table .player-name {
-        width: 100%;
-        gap: 0.65rem;
-    }
-
-    .players-table .player-avatar {
-        width: 2.3rem;
-        height: 2.3rem;
-    }
-
-    /* -----------------------------------------------------
-       ETIQUETAS DE LOS CAMPOS
-    ----------------------------------------------------- */
-
-    .players-table tbody td::before {
-        display: block;
-
-        flex: 0 0 auto;
-
-        margin-right: 1rem;
-
-        color: var(--color-texto-secundario);
-
-        font-family: var(--fuente-cuerpo);
-        font-size: 0.76rem;
-        font-weight: 600;
-
-        line-height: 1.3;
-
-        text-align: left;
-    }
-
-    .players-table tbody td:nth-child(2)::before {
-        content: "Total que debe";
-    }
-
-    .players-table tbody td:nth-child(3)::before {
-        content: "Total pagado";
-    }
-
-    .players-table tbody td:nth-child(4)::before {
-        content: "Pendiente";
-    }
-
-    .players-table tbody td:nth-child(5)::before {
-        content: "Jornadas";
-    }
-
-    .players-table tbody td:nth-child(6)::before {
-        content: "Saldo";
-    }
-
-    /* -----------------------------------------------------
-       MULTAS
-       Fila completa
-    ----------------------------------------------------- */
-
-    .players-table tbody td:nth-child(7) {
-        grid-column: 1 / -1;
-
-        display: flex !important;
-
-        align-items: center;
-        justify-content: space-between;
-
-        width: 100%;
-
-        min-height: 2.9rem;
-
-        padding: 0.8rem 0;
-
-        border-bottom: 1px solid var(--color-borde);
-    }
-
-    .players-table tbody td:nth-child(7)::before {
-        content: "Multas" !important;
-
-        display: block !important;
-
-        flex: 0 0 auto;
-
-        margin-right: 1rem;
-
-        color: var(--color-texto-secundario) !important;
-
-        font-family: var(--fuente-cuerpo);
-
-        font-size: 0.76rem;
-
-        font-weight: 600;
-
-        line-height: 1.3;
-
-        text-align: left;
-    }
-
-    /* -----------------------------------------------------
-       ESTADO
-       Fila completa
-    ----------------------------------------------------- */
-
-    .players-table tbody td:nth-child(8) {
-        grid-column: 1 / -1;
-
-        display: flex !important;
-
-        align-items: center;
-        justify-content: space-between;
-
-        width: 100%;
-
-        min-height: 3.2rem;
-
-        padding: 0.85rem 0 0.25rem;
-
-        border-bottom: 0;
-    }
-
-    .players-table tbody td:nth-child(8)::before {
-        content: "Estado" !important;
-
-        display: block !important;
-
-        flex: 0 0 auto;
-
-        margin-right: 1rem;
-
-        color: var(--color-texto-secundario) !important;
-
-        font-family: var(--fuente-cuerpo);
-
-        font-size: 0.76rem;
-
-        font-weight: 600;
-
-        line-height: 1.3;
-
-        text-align: left;
-    }
-
-    /* -----------------------------------------------------
-       VALORES DE MULTAS Y ESTADO
-    ----------------------------------------------------- */
-
-    .players-table tbody td:nth-child(7) > *,
-    .players-table tbody td:nth-child(8) > * {
-        flex-shrink: 0;
-    }
-
-    /* =====================================================
-       TABLA DE JORNADA
-    ===================================================== */
-
-    .jornada-table {
-        width: 100%;
-        min-width: 0 !important;
-
-        border-collapse: separate;
-        border-spacing: 0 0.75rem;
-
-        table-layout: fixed;
-    }
-
-    .jornada-table thead {
-        display: none;
-    }
-
-    .jornada-table tbody {
-        display: block;
-        width: 100%;
-    }
-
-    .jornada-table tbody tr {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-
-        width: 100%;
-
-        margin-bottom: 0.75rem;
-        padding: 0.9rem;
-
-        border: 1px solid var(--color-borde);
-        border-left: 3px solid var(--color-oro);
-        border-radius: var(--radio);
-
-        background: var(--color-superficie);
-
-        box-shadow: var(--sombra);
-    }
-
-    .jornada-table tbody td {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-
-        min-width: 0;
-
-        padding: 0.65rem 0;
-
-        border: 0;
-        border-bottom: 1px solid var(--color-borde);
-
-        font-size: 0.84rem;
-
-        text-align: right;
-    }
-
-    .jornada-table tbody td:first-child {
-        grid-column: 1 / -1;
-
-        justify-content: flex-start;
-
-        padding-top: 0;
-        padding-bottom: 0.85rem;
-
-        margin-bottom: 0.2rem;
-
-        border-bottom: 1px solid var(--color-borde);
-
-        font-weight: 700;
-
-        text-align: left;
-    }
-
-    .jornada-table tbody td:last-child {
-        border-bottom: 0;
-    }
-
-    /* -----------------------------------------------------
-       ETIQUETAS TABLA JORNADA
-    ----------------------------------------------------- */
-
-    .jornada-table tbody td:nth-child(2)::before {
-        content: "Posición";
-    }
-
-    .jornada-table tbody td:nth-child(3)::before {
-        content: "Cantidad";
-    }
-
-    .jornada-table tbody td:nth-child(4)::before {
-        content: "Pagado";
-    }
-
-    .jornada-table tbody td:nth-child(5)::before {
-        content: "Estado";
-    }
-
-    .jornada-table tbody td::before {
-        color: var(--color-texto-secundario);
-
-        font-family: var(--fuente-cuerpo);
-        font-size: 0.76rem;
-        font-weight: 600;
-
-        margin-right: 1rem;
-
-        text-align: left;
-    }
-
-    /* =====================================================
-       CONTENEDORES
-    ===================================================== */
-
-    .table-container {
-        overflow: visible;
-
-        border: 0;
-        background: transparent;
-        box-shadow: none;
-    }
-}
-
-/* =========================================================
-MÓVILES MUY PEQUEÑOS
-========================================================= */
-
-@media (max-width: 400px) {
-
-    .players-table tbody tr,
-    .jornada-table tbody tr {
-        padding: 0.8rem;
-    }
-
-    .players-table tbody td,
-    .jornada-table tbody td {
-        font-size: 0.82rem;
-    }
-
-    .players-table tbody td::before,
-    .jornada-table tbody td::before {
-        font-size: 0.72rem;
-    }
-
-    .players-table .player-avatar {
-        width: 2.1rem;
-        height: 2.1rem;
-    }
-}
-
-/* =========================================================
-ORDENACIÓN - ESTADO DE JUGADORES
-========================================================= */
-
-.control-orden-jugadores {
+.sheet-cabecera {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-
-    gap: 0.65rem;
-
-    margin: 0 0 1rem;
-    padding: 0.15rem 0;
+    gap: 14px;
+    margin-bottom: 16px;
 }
 
-/* ---------------------------------------------------------
-ETIQUETA
---------------------------------------------------------- */
+.sheet-cabecera h2 {
+    font-size: 1.3rem;
+    line-height: 1.15;
+}
 
-.control-orden-jugadores label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
+.sheet-cabecera p {
+    margin: 2px 0 0;
+    font-size: .8rem;
+    color: var(--texto-2);
+}
 
-    margin: 0;
+.sheet-datos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
 
-    color: var(--color-texto-secundario);
+.sheet-dato {
+    padding: 11px 13px;
+    border-radius: var(--radio-s);
+    background: var(--superficie-2);
+    border: 1px solid var(--borde);
+}
 
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+.sheet-dato span {
+    display: block;
+    font-size: .73rem;
+    color: var(--texto-2);
+}
 
+.sheet-dato strong {
+    display: block;
+    margin-top: 1px;
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================
+   AVISO FLOTANTE
+========================================================= */
+
+.aviso {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--alto-tabbar) + var(--safe-bottom) + 14px);
+    transform: translateX(-50%);
+    z-index: 50;
+
+    max-width: calc(100vw - 32px);
+    padding: 9px 16px;
+
+    border-radius: 99px;
+    background: var(--verde-800);
+    color: #fff;
+
+    font-size: .82rem;
     white-space: nowrap;
-}
+    overflow: hidden;
+    text-overflow: ellipsis;
 
-.control-orden-jugadores label i {
-    color: var(--color-cesped);
-    font-size: 0.9rem;
-}
-
-/* ---------------------------------------------------------
-SELECT
---------------------------------------------------------- */
-
-.control-orden-jugadores .form-select {
-    width: auto;
-    min-width: 10.5rem;
-    min-height: 2.5rem;
-
-    padding: 0.55rem 2.35rem 0.55rem 0.85rem;
-
-    border: 1px solid var(--color-borde);
-    border-radius: var(--radio-pequeno);
-
-    background-color: var(--color-superficie);
-    color: var(--color-principal);
-
-    font-family: var(--fuente-cuerpo);
-    font-size: 0.82rem;
-    font-weight: 600;
-
-    box-shadow: 0 0.2rem 0.65rem rgba(10, 25, 15, 0.05);
-
-    cursor: pointer;
-
-    transition:
-        border-color var(--velocidad) ease,
-        box-shadow var(--velocidad) ease,
-        background-color var(--velocidad) ease;
-}
-
-.control-orden-jugadores .form-select:hover {
-    border-color: rgba(13, 61, 36, 0.35);
-    background-color: var(--color-superficie-2);
-}
-
-.control-orden-jugadores .form-select:focus {
-    border-color: var(--color-cesped);
-
-    box-shadow:
-        0 0 0 0.2rem rgba(43, 168, 90, 0.12);
-
-    outline: none;
-}
-
-/* ---------------------------------------------------------
-BOTÓN ASCENDENTE / DESCENDENTE
---------------------------------------------------------- */
-
-#direccionOrdenJugadores {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    width: 2.5rem;
-    height: 2.5rem;
-
-    flex-shrink: 0;
-
-    padding: 0;
-
-    border: 1px solid var(--color-borde);
-    border-radius: var(--radio-pequeno);
-
-    background: var(--color-superficie);
-    color: var(--color-principal);
-
-    font-size: 1rem;
-    font-weight: 700;
-
-    box-shadow:
-        0 0.2rem 0.65rem rgba(10, 25, 15, 0.05);
-
-    cursor: pointer;
-
-    transition:
-        background-color var(--velocidad) ease,
-        border-color var(--velocidad) ease,
-        color var(--velocidad) ease,
-        transform 0.1s ease,
-        box-shadow var(--velocidad) ease;
-}
-
-#direccionOrdenJugadores:hover {
-    border-color: var(--color-principal);
-
-    background: var(--color-principal);
-
-    color: var(--color-oro);
-
-    box-shadow:
-        0 0.35rem 0.9rem rgba(10, 25, 15, 0.12);
-}
-
-#direccionOrdenJugadores:active {
-    transform: scale(0.94);
-}
-
-#direccionOrdenJugadores:focus-visible {
-    outline: 2px solid var(--color-cesped);
-    outline-offset: 2px;
+    box-shadow: 0 8px 24px rgba(5, 20, 12, .35);
+    animation: aparecer .2s ease both;
 }
 
 /* =========================================================
-RESPONSIVE - ORDENACIÓN
+   PANTALLAS GRANDES
+   La app sigue siendo móvil: solo respiramos un poco más.
 ========================================================= */
 
-@media (max-width: 767.98px) {
+@media (min-width: 600px) {
 
-    .control-orden-jugadores {
-        align-items: stretch;
-        justify-content: stretch;
-
-        gap: 0.55rem;
-
-        width: 100%;
-
-        margin-bottom: 1rem;
+    .rejilla-datos {
+        grid-template-columns: repeat(4, 1fr);
     }
 
-    .control-orden-jugadores label {
-        justify-content: flex-start;
+    .marcador {
+        padding: 24px;
     }
 
-    .control-orden-jugadores .form-select {
-        flex: 1;
-
-        width: 100%;
-        min-width: 0;
-    }
-
-    #direccionOrdenJugadores {
-        width: 2.5rem;
-        min-width: 2.5rem;
+    .titulo-bloque {
+        font-size: 1.15rem;
     }
 }
 
-/* =========================================================
-MÓVILES PEQUEÑOS
-========================================================= */
+@media (min-width: 900px) {
 
-@media (max-width: 400px) {
-
-    .control-orden-jugadores {
-        gap: 0.45rem;
-    }
-
-    .control-orden-jugadores label {
-        font-size: 0.74rem;
-    }
-
-    .control-orden-jugadores .form-select {
-        font-size: 0.78rem;
+    .tabbar {
+        max-width: 680px;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 1px solid var(--borde);
+        border-radius: 18px 18px 0 0;
     }
 }

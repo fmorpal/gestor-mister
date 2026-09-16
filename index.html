@@ -1,421 +1,249 @@
 <!DOCTYPE html>
-
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
- 
-<title>Gestor Liga Mister</title>
+<meta charset="UTF-8">
 
-<!-- Bootstrap -->
-<link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
->
+<!--
+    viewport-fit=cover  → permite usar toda la pantalla en iPhone
+                          con notch / Dynamic Island.
+    maximum-scale libre → no bloqueamos el zoom (accesibilidad).
+-->
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-<!-- Iconos Bootstrap -->
-<link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
->
+<title>Fuera de Juego · Liga Mister</title>
+<meta name="description" content="Pagos, jornadas y saldos de la liga Fuera de Juego.">
 
-<!-- CSS propio -->
+<!-- Color de la barra del navegador (Chrome Android y Safari 15+) -->
+<meta name="theme-color" content="#0a2e1c" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#07130d" media="(prefers-color-scheme: dark)">
+
+<!-- Instalable como app en iOS -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fuera de Juego">
+<meta name="format-detection" content="telephone=no">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+
+<!-- Tipografías -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+
+<!-- Iconos -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
 <link rel="stylesheet" href="style.css">
- 
 
 </head>
 
 <body>
 
-<!-- ==========================================
-     NAVBAR
-=========================================== -->
+<!-- =========================================================
+     BARRA SUPERIOR
+========================================================= -->
 
-<nav class="navbar navbar-expand-lg navbar-dark">
-    <div class="container">
+<header class="topbar" id="topbar">
 
- 
-    <a class="navbar-brand" href="#">
-        <i class="bi bi-trophy-fill"></i>
-        Fuera de Juego
-    </a>
+    <div class="topbar-inner">
 
-    <button
-        class="navbar-toggler"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#menuPrincipal"
-        aria-controls="menuPrincipal"
-        aria-expanded="false"
-        aria-label="Mostrar menú"
-    >
-        <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <div class="collapse navbar-collapse" id="menuPrincipal">
-        <ul class="navbar-nav ms-auto">
-
-            <li class="nav-item">
-                <a class="nav-link active" href="#resumen">
-                    <i class="bi bi-speedometer2"></i>
-                    Resumen
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="#jugadores">
-                    <i class="bi bi-people-fill"></i>
-                    Jugadores
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="#jornadas">
-                    <i class="bi bi-calendar3"></i>
-                    Jornadas
-                </a>
-            </li>
-
-        </ul>
-    </div>
-
-</div>
- 
-
-</nav>
-
-<!-- ==========================================
-     CABECERA
-=========================================== -->
-
-<header class="hero">
-    <div class="container">
-
- 
-    <div class="hero-content">
-
-        <div>
-            <span class="hero-badge">
-                <span class="punto-en-vivo"></span>
-                Liga Fuera de Juego
+        <div class="brand">
+            <span class="brand-escudo"><i class="bi bi-trophy-fill"></i></span>
+            <span class="brand-texto">
+                <strong>Fuera de Juego</strong>
+                <small id="tituloVista">Resumen</small>
             </span>
-
-            <h1>Mister Fuera de Juego</h1>
-
-            <p>
-                Consulta el estado de los pagos, las jornadas
-                y el saldo de cada jugador.
-            </p>
         </div>
 
-        <div class="hero-icon">
-            <i class="bi bi-trophy-fill"></i>
-        </div>
+        <button type="button"
+                id="botonRecargar"
+                class="boton-icono"
+                aria-label="Actualizar datos">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
 
     </div>
 
-</div>
- 
+    <!-- Indicador de "tirar para actualizar" -->
+    <div class="ptr" id="ptr" aria-hidden="true">
+        <i class="bi bi-arrow-down"></i>
+    </div>
 
 </header>
 
-<!-- ==========================================
-     CONTENIDO PRINCIPAL
-=========================================== -->
 
-<main class="container py-4">
+<!-- =========================================================
+     CONTENIDO
+========================================================= -->
 
- 
-<!-- ======================================
-     RESUMEN GENERAL
-======================================= -->
-<section id="resumen">
+<main id="contenido">
 
-    <div class="section-header">
-        <div>
-            <span class="section-subtitle">Información de la liga</span>
-            <h2>Resumen general</h2>
+<!-- ------------------- RESUMEN ------------------- -->
+<section class="vista vista-activa" id="vista-resumen" aria-label="Resumen">
+
+    <div class="marcador">
+
+        <div class="marcador-cabecera">
+            <span>Pendiente de cobrar</span>
+            <span class="conexion conexion-cargando" id="estadoConexion">
+                <span class="conexion-punto"></span>
+                <span id="estadoConexionTexto">Cargando</span>
+            </span>
         </div>
 
-        <span id="estadoConexion" class="connection-status status-loading">
-            <i class="bi bi-arrow-repeat"></i>
-            Cargando...
-        </span>
+        <p class="marcador-cifra" id="dineroPendiente">—</p>
+
+        <div class="barra-bote" aria-hidden="true">
+            <span id="barraBote"></span>
+        </div>
+
+        <div class="marcador-pie">
+            <span><i class="bi bi-check2-circle"></i> <b id="dineroActual">—</b> cobrado</span>
+            <span><i class="bi bi-wallet2"></i> <b id="dineroTotal">—</b> total</span>
+        </div>
+
     </div>
 
+    <div class="rejilla-datos">
 
-    <div class="row g-3">
+        <article class="dato">
+            <span class="dato-etiqueta">Jornadas jugadas</span>
+            <strong class="dato-valor" id="jornadasCompletadas">—</strong>
+            <span class="dato-pie">de 38</span>
+        </article>
 
-        <!-- Dinero total -->
-        <div class="col-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="bi bi-wallet2"></i>
-                </div>
+        <article class="dato">
+            <span class="dato-etiqueta">Jugadores al día</span>
+            <strong class="dato-valor" id="jugadoresAlDia">—</strong>
+            <span class="dato-pie" id="jugadoresTotales">&nbsp;</span>
+        </article>
 
-                <div>
-                    <span class="stat-label">Dinero total</span>
-                    <strong id="dineroTotal">-- €</strong>
-                </div>
-            </div>
-        </div>
+        <article class="dato">
+            <span class="dato-etiqueta">Multas acumuladas</span>
+            <strong class="dato-valor" id="multasTotales">—</strong>
+            <span class="dato-pie">en toda la liga</span>
+        </article>
 
+        <article class="dato">
+            <span class="dato-etiqueta">Mayor deuda</span>
+            <strong class="dato-valor" id="mayorDeuda">—</strong>
+            <span class="dato-pie" id="mayorDeudaNombre">&nbsp;</span>
+        </article>
 
-        <!-- Dinero actual -->
-        <div class="col-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="bi bi-cash-stack"></i>
-                </div>
+    </div>
 
-                <div>
-                    <span class="stat-label">Dinero actual</span>
-                    <strong id="dineroActual">-- €</strong>
-                </div>
-            </div>
-        </div>
+    <h2 class="titulo-bloque">Quién debe más</h2>
 
+    <div class="lista" id="listaMorosos">
+        <div class="esqueleto"></div>
+        <div class="esqueleto"></div>
+        <div class="esqueleto"></div>
+    </div>
 
-        <!-- Dinero pendiente -->
-        <div class="col-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="bi bi-exclamation-circle"></i>
-                </div>
+    <p class="nota-pie">
+        <i class="bi bi-cloud-check"></i>
+        <span id="ultimaActualizacion">Conectando con la hoja de cálculo…</span>
+    </p>
 
-                <div>
-                    <span class="stat-label">Dinero pendiente</span>
-                    <strong id="dineroPendiente">-- €</strong>
-                </div>
-            </div>
-        </div>
+</section>
 
 
-        <!-- Jornadas -->
-        <div class="col-6 col-xl-3">
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="bi bi-calendar-check"></i>
-                </div>
+<!-- ------------------- JUGADORES ------------------- -->
+<section class="vista" id="vista-jugadores" aria-label="Jugadores" hidden>
 
-                <div>
-                    <span class="stat-label">Jornadas</span>
-                    <strong id="jornadasCompletadas">-- / 38</strong>
-                </div>
-            </div>
-        </div>
+    <div class="buscador">
+        <i class="bi bi-search"></i>
+        <input type="search"
+               id="buscadorJugadores"
+               placeholder="Buscar jugador"
+               autocomplete="off"
+               autocapitalize="words"
+               enterkeyhint="search"
+               aria-label="Buscar jugador">
+        <button type="button" class="buscador-limpiar" id="limpiarBusqueda" hidden aria-label="Borrar búsqueda">
+            <i class="bi bi-x-circle-fill"></i>
+        </button>
+    </div>
 
+    <div class="chips" id="chipsOrden" role="tablist" aria-label="Ordenar jugadores">
+        <button type="button" class="chip chip-activo" data-orden="pendiente">Deuda</button>
+        <button type="button" class="chip" data-orden="totalPagado">Pagado</button>
+        <button type="button" class="chip" data-orden="multas">Multas</button>
+        <button type="button" class="chip" data-orden="saldo">Saldo</button>
+        <button type="button" class="chip" data-orden="nombre">A–Z</button>
+    </div>
+
+    <div class="lista" id="listaJugadores">
+        <div class="esqueleto"></div>
+        <div class="esqueleto"></div>
+        <div class="esqueleto"></div>
+        <div class="esqueleto"></div>
     </div>
 
 </section>
 
 
-<!-- ======================================
-     JUGADORES
-======================================= -->
-<section id="jugadores" class="mt-5">
+<!-- ------------------- JORNADAS ------------------- -->
+<section class="vista" id="vista-jornadas" aria-label="Jornadas" hidden>
 
-    <div class="section-header">
-        <div>
-            <span class="section-subtitle">Control de pagos</span>
-            <h2>Estado de los jugadores</h2>
-        </div>
-    </div>
+    <div class="jornada-pills" id="selectorJornada" role="tablist" aria-label="Elegir jornada"></div>
 
+    <div id="jornadaInfo"></div>
 
-    <div class="table-container">
-
-        <div class="table-responsive">
-
-            <table class="table players-table">
-
-                <thead>
-                    <tr>
-                        <th>Jugador</th>
-                        <th>Total que debe</th>
-                        <th>Total pagado</th>
-                        <th>Pendiente</th>
-                        <th>Jornadas</th>
-                        <th>Saldo</th>
-                        <th>Multas</th>
-                        <th>Estado</th>
-                    </tr>
-                </thead>
-
-                <tbody id="tablaJugadores">
-
-                    <!--
-                        Los jugadores se cargarán
-                        automáticamente desde Google Sheets
-                        mediante script.js.
-                    -->
-
-                    <tr>
-                        <td colspan="8" class="loading-cell">
-                            <i class="bi bi-arrow-repeat"></i>
-                            Cargando jugadores...
-                        </td>
-                    </tr>
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
+    <div class="lista" id="listaJornada"></div>
 
 </section>
-
-
-<!-- ======================================
-     JORNADAS
-======================================= -->
-<section id="jornadas" class="mt-5">
-
-    <div class="section-header">
-
-        <div>
-            <span class="section-subtitle">Historial</span>
-            <h2>Pagos por jornada</h2>
-        </div>
-
-    </div>
-
-    <!--
-        Calendario de jornadas en formato de fichas
-        deslizables, en lugar de un desplegable.
-    -->
-    <div class="jornada-selector-wrapper">
-
-        <div
-            id="selectorJornada"
-            class="jornada-pills"
-            role="tablist"
-            aria-label="Selector de jornada"
-        >
-
-            <!--
-                Las fichas de jornada se generan
-                automáticamente mediante script.js.
-            -->
-
-        </div>
-
-    </div>
-
-
-    <div id="jornadaInfo" class="jornada-info">
-
-        <div class="empty-state">
-
-            <i class="bi bi-calendar3"></i>
-
-            <h3>Selecciona una jornada</h3>
-
-            <p>
-                Selecciona una jornada para consultar
-                quién ha pagado y cuánto debía pagar.
-            </p>
-
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ======================================
-     TABLA DE JORNADA
-======================================= -->
-<section id="detalleJornada" class="mt-4 d-none">
-
-    <div class="table-container">
-
-        <div class="table-responsive">
-
-            <table class="table jornada-table">
-
-                <thead>
-                    <tr>
-                        <th>Jugador</th>
-                        <th>Posición</th>
-                        <th>Cantidad</th>
-                        <th>Pago</th>
-                        <th>Estado</th>
-                    </tr>
-                </thead>
-
-                <tbody id="tablaJornada">
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ======================================
-     ÚLTIMA ACTUALIZACIÓN
-======================================= -->
-<div class="last-update">
-
-    <i class="bi bi-cloud-check"></i>
-
-    <span>
-        Datos obtenidos de Google Sheets
-    </span>
-
-    <span>•</span>
-
-    <span id="ultimaActualizacion">
-        Actualizando...
-    </span>
-
-</div>
- 
 
 </main>
 
-<!-- ==========================================
-     FOOTER
-=========================================== -->
 
-<footer>
+<!-- =========================================================
+     NAVEGACIÓN INFERIOR
+========================================================= -->
 
- 
-<div class="container">
+<nav class="tabbar" id="tabbar" aria-label="Secciones">
 
-    <div class="footer-content">
+    <button type="button" class="tab tab-activo" data-vista="resumen" aria-current="page">
+        <i class="bi bi-speedometer2"></i>
+        <span>Resumen</span>
+    </button>
 
-        <span>
-            <i class="bi bi-trophy-fill"></i>
-            Liga Mister
-        </span>
+    <button type="button" class="tab" data-vista="jugadores">
+        <i class="bi bi-people-fill"></i>
+        <span>Jugadores</span>
+    </button>
 
-        <span>
-            Gestor privado de pagos
-        </span>
+    <button type="button" class="tab" data-vista="jornadas">
+        <i class="bi bi-calendar3"></i>
+        <span>Jornadas</span>
+    </button>
 
-    </div>
+</nav>
 
-</div>
- 
 
-</footer>
+<!-- =========================================================
+     FICHA DE JUGADOR (panel deslizante)
+========================================================= -->
 
-<!-- Bootstrap JS -->
+<div class="sheet-fondo" id="sheetFondo" hidden></div>
 
-<script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
-</script>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetNombre" hidden>
+    <button type="button" class="sheet-tirador" id="sheetCerrar" aria-label="Cerrar ficha"></button>
+    <div class="sheet-cuerpo" id="sheetCuerpo"></div>
+</aside>
 
-<!-- JavaScript propio -->
+
+<!-- Aviso flotante (sin conexión, datos guardados…) -->
+<div class="aviso" id="aviso" role="status" aria-live="polite" hidden></div>
+
 
 <script src="script.js"></script>
 
