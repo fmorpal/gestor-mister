@@ -6,7 +6,7 @@
    así los móviles descargan la versión nueva.
 ========================================================= */
 
-const VERSION = "fdj-v2";
+const VERSION = "fdj-v3";
 
 const ARCHIVOS = [
     "./",
@@ -17,7 +17,11 @@ const ARCHIVOS = [
     "./favicon.svg",
     "./icons/icon-180.png",
     "./icons/icon-192.png",
-    "./icons/icon-512.png"
+    "./icons/icon-512.png",
+    "./admin.html",
+    "./admin.css",
+    "./admin.js",
+    "./admin.webmanifest"
 ];
 
 

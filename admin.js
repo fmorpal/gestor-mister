@@ -9,7 +9,8 @@
 "use strict";
 
 const API_URL =
-    "https://script.google.com/macros/s/AKfycbxhZ5E2rLzvZiRb636Id_6c2Pcpi0ZdvGtIgDuBZRZaSEBAORTeO2jkoNS_W2HOP210/exec";
+    "https://script.google.com/macros/s/AKfycbyYp9d0TdPSK0O_dclAv6i-XE29LDkcKcUO1NJEfZqqm42FYCprLgzdGG7-C5Ft_Rwt/exec";
+
 
 /* La contraseña solo se guarda mientras dura la pestaña. */
 const CLAVE_SESION = "fdj-admin-clave";
@@ -42,6 +43,8 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#botonSalir").addEventListener("click", salir);
     $("#botonGuardar").addEventListener("click", guardarCambios);
 
+    registrarServiceWorker();
+
     /* Si ya se ha introducido la clave en esta pestaña, no la pedimos otra vez. */
     const claveGuardada = sessionStorage.getItem(CLAVE_SESION);
 
@@ -50,6 +53,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 });
+
+
+/* Mismo service worker que la web pública: así Chrome también
+ * ofrece instalar el panel como aplicación aparte. */
+function registrarServiceWorker() {
+
+    if (!("serviceWorker" in navigator)) {
+        return;
+    }
+
+    if (location.protocol !== "https:" && location.hostname !== "localhost") {
+        return;
+    }
+
+    window.addEventListener("load", () => {
+        navigator.serviceWorker
+            .register("sw.js")
+            .catch((error) => console.warn("Service worker no registrado:", error));
+    });
+
+}
 
 
 function intentarEntrar(clave) {
@@ -68,15 +92,20 @@ async function entrar(clave) {
     estado.clave = clave;
 
     $("#errorAcceso").hidden = true;
-    $("#pantallaAcceso").querySelector("button").disabled = true;
+
+    const boton = $("#pantallaAcceso").querySelector("button");
+    const textoOriginal = boton.textContent;
+
+    boton.disabled = true;
+    boton.textContent = "Comprobando…";
 
     try {
 
-        const valida = await comprobarClave(clave);
+        const resultado = await comprobarClave(clave);
 
-        if (!valida) {
+        if (!resultado.ok) {
 
-            $("#errorAcceso").textContent = "Contraseña incorrecta.";
+            $("#errorAcceso").textContent = resultado.error || "Contraseña incorrecta.";
             $("#errorAcceso").hidden = false;
 
             estado.clave = null;
@@ -84,7 +113,9 @@ async function entrar(clave) {
 
         }
 
-        await cargarDatos();
+        estado.datos = resultado.datos;
+        estado.jugadores = leerNombresJugadores();
+        pintarSelectorJornadas();
 
         sessionStorage.setItem(CLAVE_SESION, clave);
 
@@ -104,14 +135,18 @@ async function entrar(clave) {
 
     } finally {
 
-        $("#pantallaAcceso").querySelector("button").disabled = false;
+        boton.disabled = false;
+        boton.textContent = textoOriginal;
 
     }
 
 }
 
 
-/* Comprueba la contraseña contra el servidor antes de dejar pasar. */
+/*
+ * Comprueba la contraseña contra el servidor y, en el mismo viaje,
+ * trae ya los datos de la liga (una sola llamada en vez de dos).
+ */
 async function comprobarClave(clave) {
 
     const respuesta = await fetch(API_URL, {
@@ -124,9 +159,7 @@ async function comprobarClave(clave) {
         throw new Error("HTTP " + respuesta.status);
     }
 
-    const resultado = await respuesta.json();
-
-    return resultado.ok === true;
+    return await respuesta.json();
 
 }
 
