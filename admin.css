@@ -1,0 +1,320 @@
+/* =========================================================
+   ADMINISTRACIÓN — estilos propios de esta página.
+   Reutiliza las variables y clases de style.css.
+========================================================= */
+
+body {
+    padding-bottom: 90px;
+}
+
+/* ---------------------------------------------------------
+   PANTALLA DE ACCESO
+--------------------------------------------------------- */
+
+.acceso {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+
+    display: grid;
+    place-items: center;
+    padding: 24px;
+
+    background: linear-gradient(155deg, var(--verde-700) 0%, var(--verde-900) 100%);
+}
+
+.acceso-caja {
+    width: 100%;
+    max-width: 340px;
+    text-align: center;
+    color: #fff;
+}
+
+.acceso-icono {
+    display: inline-grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 14px;
+
+    border-radius: 16px;
+    background: rgba(227, 178, 60, .16);
+    color: var(--oro);
+    font-size: 1.5rem;
+}
+
+.acceso-caja h1 {
+    font-size: 1.3rem;
+    margin-bottom: 6px;
+}
+
+.acceso-caja p {
+    margin: 0 0 20px;
+    color: var(--sobre-verde);
+    font-size: .88rem;
+}
+
+#formAcceso {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#campoClave {
+    height: 46px;
+    padding: 0 16px;
+
+    border-radius: 99px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+
+    font-size: 16px;
+    text-align: center;
+}
+
+#campoClave::placeholder {
+    color: rgba(255, 255, 255, .5);
+}
+
+#campoClave:focus {
+    outline: none;
+    border-color: var(--cesped-claro);
+    background: rgba(255, 255, 255, .12);
+}
+
+.boton-principal {
+    height: 46px;
+    padding: 0 20px;
+
+    border-radius: 99px;
+    background: var(--cesped);
+    color: #fff;
+
+    font-weight: 600;
+    font-size: .95rem;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    transition: transform .15s ease, background .15s ease;
+}
+
+.boton-principal:active {
+    transform: scale(.97);
+}
+
+.boton-principal:disabled {
+    opacity: .55;
+    pointer-events: none;
+}
+
+.acceso-error {
+    margin-top: 14px;
+    color: #ff9a92;
+    font-size: .85rem;
+}
+
+/* ---------------------------------------------------------
+   CONTENIDO
+--------------------------------------------------------- */
+
+#contenido {
+    padding-top: calc(var(--safe-top) + var(--alto-topbar) + 14px);
+    padding-left: max(14px, var(--safe-left));
+    padding-right: max(14px, var(--safe-right));
+    padding-bottom: 24px;
+
+    max-width: 680px;
+    margin: 0 auto;
+}
+
+.aviso-info {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+
+    padding: 12px 14px;
+    margin: 0 0 16px;
+
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+
+    font-size: .82rem;
+    color: var(--texto-2);
+}
+
+.aviso-info i {
+    color: var(--cesped);
+    font-size: 1rem;
+    margin-top: 1px;
+    flex: none;
+}
+
+/* ---------------------------------------------------------
+   FILA DE EDICIÓN DE UN JUGADOR
+--------------------------------------------------------- */
+
+.fila-editar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 11px 12px;
+    margin-bottom: 8px;
+
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+
+    transition: border-color .15s ease, background .15s ease;
+}
+
+.fila-editar.modificada {
+    border-color: var(--cesped);
+    background: color-mix(in srgb, var(--exito-suave) 55%, var(--superficie));
+}
+
+.fila-editar-nombre {
+    flex: 1;
+    min-width: 0;
+
+    font-weight: 600;
+    font-size: .92rem;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.campo-posicion {
+    flex: none;
+    width: 64px;
+    height: 40px;
+
+    border-radius: 10px;
+    border: 1px solid var(--borde);
+    background: var(--superficie-2);
+    color: var(--texto);
+
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.campo-posicion:focus {
+    outline: none;
+    border-color: var(--cesped);
+}
+
+.campo-posicion.duplicada {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+/* Interruptor de pagado */
+
+.interruptor {
+    flex: none;
+    position: relative;
+    width: 50px;
+    height: 30px;
+}
+
+.interruptor input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.interruptor-pista {
+    position: absolute;
+    inset: 0;
+
+    border-radius: 99px;
+    background: var(--borde);
+
+    transition: background .18s ease;
+}
+
+.interruptor-pista::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+
+    transition: transform .18s ease;
+}
+
+.interruptor input:checked ~ .interruptor-pista {
+    background: var(--exito);
+}
+
+.interruptor input:checked ~ .interruptor-pista::before {
+    transform: translateX(20px);
+}
+
+.interruptor input:focus-visible ~ .interruptor-pista {
+    outline: 2px solid var(--cesped);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------
+   BARRA DE GUARDADO
+--------------------------------------------------------- */
+
+.barra-guardar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    padding: 12px max(16px, var(--safe-right)) calc(12px + var(--safe-bottom)) max(16px, var(--safe-left));
+
+    background: var(--superficie);
+    border-top: 1px solid var(--borde);
+    box-shadow: 0 -8px 24px rgba(5, 20, 12, .12);
+
+    animation: subirBarra .2s ease both;
+}
+
+@keyframes subirBarra {
+    from { transform: translateY(100%); }
+    to   { transform: none; }
+}
+
+#resumenCambios {
+    font-size: .85rem;
+    color: var(--texto-2);
+}
+
+.boton-pequeno {
+    height: 42px;
+    padding: 0 18px;
+    font-size: .88rem;
+    flex: none;
+}
+
+.boton-pequeno.girando i {
+    animation: girar .8s linear infinite;
+}
