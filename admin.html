@@ -100,21 +100,88 @@
 
 
 <!-- =========================================================
-     CONTENIDO
+     PESTAÑAS
+========================================================= -->
+
+<nav class="admin-tabs" id="adminTabs" hidden>
+    <button type="button" class="admin-tab admin-tab-activo" data-panel="jornadas">
+        <i class="bi bi-calendar3"></i>
+        Jornadas
+    </button>
+    <button type="button" class="admin-tab" data-panel="bote">
+        <i class="bi bi-piggy-bank"></i>
+        Bote
+    </button>
+</nav>
+
+
+<!-- =========================================================
+     CONTENIDO — JORNADAS
 ========================================================= -->
 
 <main id="contenido" hidden>
 
     <p class="aviso-info">
         <i class="bi bi-info-circle"></i>
-        Elige una jornada, ajusta posiciones y pagos, y pulsa
-        <b>Guardar cambios</b>. El resto de la liga (resumen, saldos,
-        multas) se recalcula solo.
+        Elige una jornada, ajusta posiciones, pagos y multas, y pulsa
+        <b>Guardar cambios</b>. El resto de la liga (resumen, saldos)
+        se recalcula solo.
     </p>
 
     <div class="jornada-pills" id="selectorJornada" role="tablist" aria-label="Elegir jornada"></div>
 
     <div id="listaEdicion"></div>
+
+</main>
+
+
+<!-- =========================================================
+     CONTENIDO — BOTE / APORTACIONES
+========================================================= -->
+
+<main id="panelBote" hidden>
+
+    <p class="aviso-info">
+        <i class="bi bi-info-circle"></i>
+        Dinero que alguien pone por su cuenta, aparte de las jornadas
+        (por ejemplo, entre todos para comprar algo). Se suma al total
+        cobrado de la liga; no afecta a la deuda de nadie.
+    </p>
+
+    <div class="bote-total" id="boteTotal">
+        <span>Aportado en total</span>
+        <strong id="boteTotalCifra">0 €</strong>
+    </div>
+
+    <form id="formAportacion" class="form-aportacion">
+
+        <select id="campoJugadorAportacion" required aria-label="Jugador">
+            <option value="" disabled selected>Jugador…</option>
+        </select>
+
+        <input type="number"
+               id="campoImporteAportacion"
+               placeholder="Importe"
+               inputmode="decimal"
+               min="0.01"
+               step="0.01"
+               required
+               aria-label="Importe en euros">
+
+        <input type="text"
+               id="campoNotaAportacion"
+               placeholder="Nota (opcional)"
+               maxlength="60"
+               aria-label="Nota">
+
+        <button type="submit" class="boton-principal boton-pequeno" id="botonAnadirAportacion">
+            <i class="bi bi-plus-lg"></i>
+            Añadir
+        </button>
+
+    </form>
+
+    <div class="lista" id="listaAportaciones"></div>
 
 </main>
 

@@ -425,6 +425,21 @@ button {
     font-variant-numeric: tabular-nums;
 }
 
+.marcador-nota {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    margin: 10px 0 0;
+    font-size: .76rem;
+    color: var(--sobre-verde);
+}
+
+.marcador-nota i {
+    color: var(--oro);
+}
+
 /* Estado de conexión */
 
 .conexion {

@@ -254,16 +254,22 @@ function leerJugadores() {
         const totalDebe = aNumero(fila[1]);
         const totalPagado = aNumero(fila[2]);
         const pendiente = aNumero(fila[3]);
+        const nombre = String(fila[0]).trim();
+
+        const multasInfo = calcularMultasJugador(nombre);
 
         jugadores.push({
-            nombre: String(fila[0]).trim(),
+            nombre,
             totalDebe,
             totalPagado,
             pendiente,
             jornadasPagadas: aNumero(fila[4]),
             jornadasPendientes: aNumero(fila[5]),
             saldo: aNumero(fila[7]),
-            multas: aNumero(fila[8]),
+            multas: multasInfo.pendiente,           // lo que aún debe de multas
+            multasTotal: multasInfo.total,
+            multasPagadas: multasInfo.pagado,
+            aportado: calcularAportado(nombre),
             progreso: totalDebe > 0
                 ? Math.max(0, Math.min(1, totalPagado / totalDebe))
                 : 1
@@ -276,19 +282,109 @@ function leerJugadores() {
 }
 
 
+/*
+ * Suma las multas de un jugador jornada a jornada, separando
+ * lo que ya ha pagado de lo que todavía debe.
+ */
+function calcularMultasJugador(nombre) {
+
+    const multas = (estado.datos && estado.datos.multas) || [];
+    const pagadas = (estado.datos && estado.datos.multasPagadas) || [];
+
+    const cabeceraMultas = multas[0] || [];
+    const cabeceraPagadas = pagadas[0] || [];
+
+    const columnaMultas = cabeceraMultas.indexOf(nombre);
+    const columnaPagadas = cabeceraPagadas.indexOf(nombre);
+
+    let total = 0;
+    let pagado = 0;
+
+    if (columnaMultas > -1) {
+
+        for (let i = 1; i < multas.length; i++) {
+
+            const importe = aNumero(multas[i][columnaMultas]);
+
+            if (importe <= 0) {
+                continue;
+            }
+
+            total += importe;
+
+            const numeroJornada = multas[i][0];
+
+            const filaPagada = columnaPagadas > -1
+                ? pagadas.find((f) => String(f[0]) === String(numeroJornada))
+                : null;
+
+            const estaPagada = filaPagada
+                ? String(filaPagada[columnaPagadas]).trim() === "✓"
+                : false;
+
+            if (estaPagada) {
+                pagado += importe;
+            }
+
+        }
+
+    }
+
+    return { total, pagado, pendiente: total - pagado };
+
+}
+
+
+/*
+ * Suma lo que un jugador ha aportado al bote común,
+ * fuera de las cuotas normales de las jornadas.
+ */
+function calcularAportado(nombre) {
+
+    const aportaciones = (estado.datos && estado.datos.aportaciones) || [];
+
+    let total = 0;
+
+    for (let i = 1; i < aportaciones.length; i++) {
+
+        if (String(aportaciones[i][2] || "").trim() === nombre) {
+            total += aNumero(aportaciones[i][3]);
+        }
+
+    }
+
+    return total;
+
+}
+
+
 function leerTotales() {
 
     const resumen = (estado.datos && estado.datos.resumen) || [];
     const fila = resumen.find((f) => f[0] === "TOTAL");
 
-    if (!fila) {
-        return { total: 0, cobrado: 0, pendiente: 0 };
+    const base = fila
+        ? { total: aNumero(fila[1]), cobrado: aNumero(fila[2]), pendiente: aNumero(fila[3]) }
+        : { total: 0, cobrado: 0, pendiente: 0 };
+
+    const aportaciones = (estado.datos && estado.datos.aportaciones) || [];
+
+    let sumaAportaciones = 0;
+
+    for (let i = 1; i < aportaciones.length; i++) {
+        sumaAportaciones += aNumero(aportaciones[i][3]);
     }
 
+    /*
+     * El bote se suma al total y a lo cobrado por igual, así que
+     * lo pendiente de las jornadas no cambia: es dinero aparte,
+     * no un pago de la cuota de nadie.
+     */
     return {
-        total: aNumero(fila[1]),
-        cobrado: aNumero(fila[2]),
-        pendiente: aNumero(fila[3])
+        total: base.total + sumaAportaciones,
+        cobrado: base.cobrado + sumaAportaciones,
+        pendiente: base.pendiente,
+        aportaciones: sumaAportaciones
     };
 
 }
@@ -364,6 +460,14 @@ function pintarResumen() {
 
     const proporcion = totales.total > 0 ? totales.cobrado / totales.total : 0;
     $("#barraBote").style.width = Math.round(proporcion * 100) + "%";
+
+    if (totales.aportaciones > 0) {
+        $("#notaBote").hidden = false;
+        $("#notaBoteTexto").textContent =
+            "Incluye " + euros(totales.aportaciones) + " aportados al bote aparte de las jornadas.";
+    } else {
+        $("#notaBote").hidden = true;
+    }
 
     /* Jornadas jugadas */
     const jornadas = leerJornadas();
@@ -812,9 +916,16 @@ function abrirFicha(nombre) {
             </div>
 
             <div class="sheet-dato">
-                <span>Multas</span>
-                <strong class="${jugador.multas > 0 ? "importe-deuda" : ""}">
+                <span>Multas pendientes</span>
+                <strong class="${jugador.multas > 0 ? "importe-deuda" : "importe-ok"}">
                     ${euros(jugador.multas)}
+                </strong>
+            </div>
+
+            <div class="sheet-dato">
+                <span>Multas pagadas</span>
+                <strong class="${jugador.multasPagadas > 0 ? "importe-ok" : ""}">
+                    ${euros(jugador.multasPagadas)}
                 </strong>
             </div>
 
@@ -824,6 +935,13 @@ function abrirFicha(nombre) {
                     <small style="font-size:.7rem;opacity:.6">
                         / ${jugador.jornadasPagadas + jugador.jornadasPendientes}
                     </small>
+                </strong>
+            </div>
+
+            <div class="sheet-dato">
+                <span>Aportado al bote</span>
+                <strong class="${jugador.aportado > 0 ? "importe-ok" : ""}">
+                    ${euros(jugador.aportado)}
                 </strong>
             </div>
 

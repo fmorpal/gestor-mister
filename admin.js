@@ -11,7 +11,6 @@
 const API_URL =
     "https://script.google.com/macros/s/AKfycbyYp9d0TdPSK0O_dclAv6i-XE29LDkcKcUO1NJEfZqqm42FYCprLgzdGG7-C5Ft_Rwt/exec";
 
-
 /* La contraseña solo se guarda mientras dura la pestaña. */
 const CLAVE_SESION = "fdj-admin-clave";
 
@@ -21,8 +20,9 @@ const estado = {
     datos: null,
     jugadores: [],
     jornadaActiva: null,
-    cambios: {},       // { "NombreJugador": { posicion, pagado } }
-    guardando: false
+    cambios: {},       // { "NombreJugador": { posicion, pagado, multaPagada } }
+    guardando: false,
+    panel: "jornadas"  // "jornadas" | "bote"
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -42,6 +42,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     $("#botonSalir").addEventListener("click", salir);
     $("#botonGuardar").addEventListener("click", guardarCambios);
+    $("#formAportacion").addEventListener("submit", manejarNuevaAportacion);
+    $("#listaAportaciones").addEventListener("click", manejarClicAportacion);
+
+    $$(".admin-tab").forEach((tab) => {
+        tab.addEventListener("click", () => cambiarPanel(tab.dataset.panel));
+    });
 
     registrarServiceWorker();
 
@@ -53,6 +59,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 });
+
+
+function cambiarPanel(nombre) {
+
+    estado.panel = nombre;
+
+    $$(".admin-tab").forEach((tab) => {
+        tab.classList.toggle("admin-tab-activo", tab.dataset.panel === nombre);
+    });
+
+    $("#contenido").hidden = nombre !== "jornadas";
+    $("#panelBote").hidden = nombre !== "bote";
+
+}
 
 
 /* Mismo service worker que la web pública: así Chrome también
@@ -115,13 +135,16 @@ async function entrar(clave) {
 
         estado.datos = resultado.datos;
         estado.jugadores = leerNombresJugadores();
+        poblarSelectJugadores();
         pintarSelectorJornadas();
+        pintarAportaciones();
 
         sessionStorage.setItem(CLAVE_SESION, clave);
 
         $("#pantallaAcceso").hidden = true;
         $("#topbar").hidden = false;
-        $("#contenido").hidden = false;
+        $("#adminTabs").hidden = false;
+        cambiarPanel("jornadas");
 
     } catch (error) {
 
@@ -320,16 +343,28 @@ function pintarEdicionJornada() {
 
     const filaPosiciones = buscarFila(estado.datos.jornadas, numero);
     const filaPagos = buscarFila(estado.datos.controlPagos, numero);
+    const filaMultas = buscarFila(estado.datos.multas, numero);
+    const filaMultasPagadas = buscarFila(estado.datos.multasPagadas, numero);
+
     const nombresJornadas = (estado.datos.jornadas && estado.datos.jornadas[0]) || [];
     const nombresControl = (estado.datos.controlPagos && estado.datos.controlPagos[3]) || [];
+    const nombresMultas = (estado.datos.multas && estado.datos.multas[0]) || [];
+    const nombresMultasPagadas = (estado.datos.multasPagadas && estado.datos.multasPagadas[0]) || [];
 
     contenedor.innerHTML = estado.jugadores.map((nombre) => {
 
         const columnaPos = nombresJornadas.indexOf(nombre);
         const columnaPago = nombresControl.indexOf(nombre);
+        const columnaMulta = nombresMultas.indexOf(nombre);
+        const columnaMultaPagada = nombresMultasPagadas.indexOf(nombre);
 
         const posicion = (filaPosiciones && columnaPos > -1) ? filaPosiciones[columnaPos] : "";
         const pagado = (filaPagos && columnaPago > -1) ? String(filaPagos[columnaPago]).trim() === "✓" : false;
+
+        const importeMulta = (filaMultas && columnaMulta > -1) ? aNumero(filaMultas[columnaMulta]) : 0;
+        const multaPagada = (filaMultasPagadas && columnaMultaPagada > -1)
+            ? String(filaMultasPagadas[columnaMultaPagada]).trim() === "✓"
+            : false;
 
         return `
             <div class="fila-editar" data-fila="${escapar(nombre)}">
@@ -343,6 +378,20 @@ function pintarEdicionJornada() {
                     <option value="">–</option>
                     ${opcionesPosicion(estado.jugadores.length, posicion)}
                 </select>
+
+                ${importeMulta > 0 ? `
+                    <label class="fila-editar-multa">
+                        <span>Multa ${euros(importeMulta)}</span>
+                        <span class="interruptor">
+                            <input type="checkbox"
+                                   data-nombre="${escapar(nombre)}"
+                                   data-campo="multa"
+                                   ${multaPagada ? "checked" : ""}
+                                   aria-label="Multa de ${escapar(nombre)} pagada">
+                            <span class="interruptor-pista"></span>
+                        </span>
+                    </label>
+                ` : ""}
 
                 <label class="interruptor">
                     <input type="checkbox"
@@ -395,6 +444,8 @@ function manejarCambioCampo(evento) {
 
     if (campo.dataset.campo === "posicion") {
         estado.cambios[nombre].posicion = campo.value;
+    } else if (campo.dataset.campo === "multa") {
+        estado.cambios[nombre].multaPagada = campo.checked;
     } else {
         estado.cambios[nombre].pagado = campo.checked;
     }
@@ -476,6 +527,7 @@ async function guardarCambios() {
 
     const posiciones = {};
     const pagos = {};
+    const multas = {};
 
     for (const nombre in estado.cambios) {
 
@@ -489,6 +541,10 @@ async function guardarCambios() {
             pagos[nombre] = cambio.pagado;
         }
 
+        if ("multaPagada" in cambio) {
+            multas[nombre] = cambio.multaPagada;
+        }
+
     }
 
     const cuerpo = {
@@ -496,7 +552,8 @@ async function guardarCambios() {
         accion: "guardarJornada",
         jornada: estado.jornadaActiva,
         posiciones,
-        pagos
+        pagos,
+        multas
     };
 
     try {
@@ -523,7 +580,13 @@ async function guardarCambios() {
 
         estado.cambios = {};
 
-        await cargarDatos();
+        // El propio guardado ya devuelve los datos actualizados:
+        // no hace falta pedirlos otra vez por separado.
+        estado.datos = resultado.datos;
+        estado.jugadores = leerNombresJugadores();
+
+        pintarSelectorJornadas();
+        pintarAportaciones();
 
         /* Volvemos a la misma jornada tras recargar. */
         const numero = estado.jornadaActiva;
@@ -549,8 +612,236 @@ async function guardarCambios() {
 
 
 /* =========================================================
+   BOTE / APORTACIONES
+========================================================= */
+
+function poblarSelectJugadores() {
+
+    const select = $("#campoJugadorAportacion");
+
+    const opciones = estado.jugadores
+        .map((nombre) => `<option value="${escapar(nombre)}">${escapar(nombre)}</option>`)
+        .join("");
+
+    select.innerHTML = `<option value="" disabled selected>Jugador…</option>${opciones}`;
+
+}
+
+
+function pintarAportaciones() {
+
+    const filas = ((estado.datos && estado.datos.aportaciones) || []).slice(1);
+
+    const total = filas.reduce((suma, fila) => suma + aNumero(fila[3]), 0);
+    $("#boteTotalCifra").textContent = euros(total);
+
+    const lista = $("#listaAportaciones");
+
+    if (!filas.length) {
+
+        lista.innerHTML = `
+            <div class="vacio">
+                <i class="bi bi-piggy-bank"></i>
+                <h3>Todavía no hay aportaciones</h3>
+                <p>Añade la primera con el formulario de arriba.</p>
+            </div>
+        `;
+
+        return;
+
+    }
+
+    /* Las más recientes primero: en la hoja se añaden al final. */
+    lista.innerHTML = filas.slice().reverse().map((fila) => {
+
+        const [id, fecha, jugador, importe, nota] = fila;
+
+        return `
+            <div class="fila-aportacion">
+
+                <span class="fila-aportacion-datos">
+                    <span class="fila-aportacion-nombre">${escapar(jugador)}</span>
+                    <span class="fila-aportacion-sub">
+                        ${escapar(fecha)}${nota ? " · " + escapar(nota) : ""}
+                    </span>
+                </span>
+
+                <span class="fila-aportacion-importe">+${euros(aNumero(importe))}</span>
+
+                <button type="button"
+                        class="boton-borrar"
+                        data-id="${escapar(id)}"
+                        aria-label="Borrar aportación de ${escapar(jugador)}">
+                    <i class="bi bi-trash3"></i>
+                </button>
+
+            </div>
+        `;
+
+    }).join("");
+
+}
+
+
+async function manejarNuevaAportacion(evento) {
+
+    evento.preventDefault();
+
+    const jugador = $("#campoJugadorAportacion").value;
+    const importe = parseFloat($("#campoImporteAportacion").value);
+    const nota = $("#campoNotaAportacion").value.trim();
+
+    if (!jugador) {
+        avisar("Elige un jugador.");
+        return;
+    }
+
+    if (!importe || importe <= 0) {
+        avisar("Escribe un importe válido.");
+        return;
+    }
+
+    const boton = $("#botonAnadirAportacion");
+    boton.disabled = true;
+    boton.classList.add("girando");
+
+    try {
+
+        const respuesta = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                clave: estado.clave,
+                accion: "agregarAportacion",
+                jugador,
+                importe,
+                nota
+            })
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!resultado.ok) {
+            throw new Error(resultado.error || "No se pudo añadir la aportación.");
+        }
+
+        estado.datos = resultado.datos;
+        pintarAportaciones();
+
+        $("#formAportacion").reset();
+        avisar("Aportación añadida");
+
+    } catch (error) {
+
+        console.error(error);
+        avisar("Error: " + error.message);
+
+    } finally {
+
+        boton.disabled = false;
+        boton.classList.remove("girando");
+
+    }
+
+}
+
+
+async function manejarClicAportacion(evento) {
+
+    const boton = evento.target.closest(".boton-borrar");
+
+    if (!boton) {
+        return;
+    }
+
+    const confirmado = confirm("¿Borrar esta aportación? No se puede deshacer.");
+
+    if (!confirmado) {
+        return;
+    }
+
+    boton.disabled = true;
+
+    try {
+
+        const respuesta = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+                clave: estado.clave,
+                accion: "eliminarAportacion",
+                id: boton.dataset.id
+            })
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!resultado.ok) {
+            throw new Error(resultado.error || "No se pudo borrar.");
+        }
+
+        estado.datos = resultado.datos;
+        pintarAportaciones();
+
+        avisar("Aportación borrada");
+
+    } catch (error) {
+
+        console.error(error);
+        avisar("Error: " + error.message);
+        boton.disabled = false;
+
+    }
+
+}
+
+
+/* =========================================================
    UTILIDADES
 ========================================================= */
+
+const formateadorEuros = new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+
+
+function euros(valor) {
+
+    const numero = Number(valor) || 0;
+
+    if (Number.isInteger(numero)) {
+        return numero.toLocaleString("es-ES") + " €";
+    }
+
+    return formateadorEuros.format(numero);
+
+}
+
+
+function aNumero(valor) {
+
+    if (valor === null || valor === undefined || valor === "") {
+        return 0;
+    }
+
+    if (typeof valor === "number") {
+        return valor;
+    }
+
+    const texto = String(valor)
+        .replace(/[€\s]/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".");
+
+    const numero = parseFloat(texto);
+
+    return isNaN(numero) ? 0 : numero;
+
+}
+
 
 function escapar(texto) {
 
