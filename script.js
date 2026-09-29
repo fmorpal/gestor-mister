@@ -376,15 +376,30 @@ function leerTotales() {
     }
 
     /*
+     * Las multas sí son dinero que la liga tiene que acabar
+     * cobrando, así que aquí funcionan distinto al bote:
+     * - lo pagado se suma a "cobrado"
+     * - el total (pagado + pendiente) se suma a "total"
+     * - lo que aún falta se suma a "pendiente"
+     *
+     * Reutilizamos lo que ya se calculó por jugador para no
+     * volver a recorrer las hojas de multas otra vez.
+     */
+    const multasPendientes = estado.jugadores.reduce((suma, j) => suma + j.multas, 0);
+    const multasPagadas = estado.jugadores.reduce((suma, j) => suma + j.multasPagadas, 0);
+    const sumaMultas = multasPendientes + multasPagadas;
+
+    /*
      * El bote se suma al total y a lo cobrado por igual, así que
-     * lo pendiente de las jornadas no cambia: es dinero aparte,
-     * no un pago de la cuota de nadie.
+     * no cambia lo pendiente: es dinero aparte, no un pago de la
+     * cuota de nadie.
      */
     return {
-        total: base.total + sumaAportaciones,
-        cobrado: base.cobrado + sumaAportaciones,
-        pendiente: base.pendiente,
-        aportaciones: sumaAportaciones
+        total: base.total + sumaAportaciones + sumaMultas,
+        cobrado: base.cobrado + sumaAportaciones + multasPagadas,
+        pendiente: base.pendiente + multasPendientes,
+        aportaciones: sumaAportaciones,
+        multas: sumaMultas
     };
 
 }
@@ -461,10 +476,19 @@ function pintarResumen() {
     const proporcion = totales.total > 0 ? totales.cobrado / totales.total : 0;
     $("#barraBote").style.width = Math.round(proporcion * 100) + "%";
 
+    const notas = [];
+
+    if (totales.multas > 0) {
+        notas.push(euros(totales.multas) + " en multas");
+    }
+
     if (totales.aportaciones > 0) {
+        notas.push(euros(totales.aportaciones) + " aportados al bote");
+    }
+
+    if (notas.length) {
         $("#notaBote").hidden = false;
-        $("#notaBoteTexto").textContent =
-            "Incluye " + euros(totales.aportaciones) + " aportados al bote aparte de las jornadas.";
+        $("#notaBoteTexto").textContent = "Incluye " + notas.join(" y ") + ".";
     } else {
         $("#notaBote").hidden = true;
     }
