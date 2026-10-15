@@ -6,7 +6,7 @@
    así los móviles descargan la versión nueva.
 ========================================================= */
 
-const VERSION = "fdj-v5";
+const VERSION = "fdj-v6";
 
 const ARCHIVOS = [
     "./",

@@ -283,6 +283,29 @@ function leerJugadores() {
 
 
 /*
+ * Multas manuales de la hoja "Multas manuales"
+ * (Id, Fecha, Jugador, Importe, Motivo, Pagada).
+ */
+function leerMultasManualesWeb() {
+
+    const filas = ((estado.datos && estado.datos.multasManuales) || []).slice(1);
+
+    return filas
+        .filter((fila) => fila[0] && fila[2])
+        .map((fila) => ({
+            id: String(fila[0]),
+            fecha: String(fila[1] || ""),
+            jugador: String(fila[2]).trim(),
+            importe: aNumero(fila[3]),
+            motivo: String(fila[4] || "").trim(),
+            pagada: String(fila[5]).trim() === "✓"
+        }))
+        .filter((m) => m.importe > 0);
+
+}
+
+
+/*
  * Suma las multas de un jugador jornada a jornada, separando
  * lo que ya ha pagado de lo que todavía debe.
  */
@@ -329,6 +352,22 @@ function calcularMultasJugador(nombre) {
         }
 
     }
+
+    /*
+     * Multas puestas a mano por el administrador: cuentan igual
+     * que las automáticas (total, pagado y pendiente).
+     */
+    leerMultasManualesWeb()
+        .filter((m) => m.jugador === nombre)
+        .forEach((m) => {
+
+            total += m.importe;
+
+            if (m.pagada) {
+                pagado += m.importe;
+            }
+
+        });
 
     return { total, pagado, pendiente: total - pagado };
 
@@ -448,6 +487,7 @@ function pintarTodo() {
     estado.jugadores = leerJugadores();
 
     pintarResumen();
+    pintarMultasManualesWeb();
     pintarJugadores();
     pintarSelectorJornadas();
 
@@ -507,7 +547,8 @@ function pintarResumen() {
     $("#jugadoresTotales").textContent = "de " + jugadores.length + " jugadores";
 
     /* Multas */
-    const multas = jugadores.reduce((suma, j) => suma + j.multas, 0);
+    /* Acumuladas = todas las multas, pagadas o no. */
+    const multas = jugadores.reduce((suma, j) => suma + j.multasTotal, 0);
     $("#multasTotales").textContent = euros(multas);
 
     /* Mayor deuda */
@@ -541,6 +582,62 @@ function pintarResumen() {
     }
 
     lista.innerHTML = morosos.map((j) => filaJugador(j, "pendiente")).join("");
+
+}
+
+
+/*
+ * Lista pública de multas manuales: primero las pendientes y,
+ * debajo, las últimas pagadas.
+ */
+function pintarMultasManualesWeb() {
+
+    const bloque = $("#bloqueMultasManuales");
+    const lista = $("#listaMultasManualesWeb");
+
+    const todas = leerMultasManualesWeb();
+
+    if (!todas.length) {
+        bloque.hidden = true;
+        return;
+    }
+
+    const pendientes = todas.filter((m) => !m.pagada).reverse();
+    const pagadas = todas.filter((m) => m.pagada).reverse().slice(0, 5);
+
+    bloque.hidden = false;
+
+    lista.innerHTML = pendientes.concat(pagadas).map(filaMultaManualWeb).join("");
+
+}
+
+
+function filaMultaManualWeb(multa) {
+
+    return `
+        <div class="fila">
+
+            ${avatar(multa.jugador)}
+
+            <span class="fila-datos">
+                <span class="fila-nombre">${escapar(multa.jugador)}</span>
+                <span class="fila-sub">
+                    ${multa.motivo ? escapar(multa.motivo) : "Multa"}
+                    ${multa.fecha ? " · " + escapar(multa.fecha.split(" ")[0]) : ""}
+                </span>
+            </span>
+
+            <span class="fila-cifra">
+                <span class="fila-importe ${multa.pagada ? "importe-ok" : "importe-deuda"}">
+                    ${euros(multa.importe)}
+                </span>
+                <span class="distintivo ${multa.pagada ? "distintivo-ok" : "distintivo-no"}">
+                    ${multa.pagada ? "Pagada" : "Pendiente"}
+                </span>
+            </span>
+
+        </div>
+    `;
 
 }
 
@@ -970,12 +1067,47 @@ function abrirFicha(nombre) {
             </div>
 
         </div>
+
+        ${fichaMultasManuales(jugador.nombre)}
     `;
 
     $("#sheetFondo").hidden = false;
     $("#sheet").hidden = false;
 
     document.body.style.overflow = "hidden";
+
+}
+
+
+/* Detalle de las multas manuales de un jugador, dentro de su ficha. */
+function fichaMultasManuales(nombre) {
+
+    const multas = leerMultasManualesWeb()
+        .filter((m) => m.jugador === nombre)
+        .sort((a, b) => Number(a.pagada) - Number(b.pagada));
+
+    if (!multas.length) {
+        return "";
+    }
+
+    return `
+        <h3 class="sheet-subtitulo">Multas</h3>
+
+        <div class="sheet-multas">
+            ${multas.map((m) => `
+                <div class="sheet-multa">
+                    <span class="sheet-multa-texto">
+                        <b>${m.motivo ? escapar(m.motivo) : "Multa"}</b>
+                        <small>${escapar(m.fecha.split(" ")[0])}</small>
+                    </span>
+                    <span class="importe-${m.pagada ? "ok" : "deuda"}">${euros(m.importe)}</span>
+                    <span class="distintivo ${m.pagada ? "distintivo-ok" : "distintivo-no"}">
+                        ${m.pagada ? "Pagada" : "Pendiente"}
+                    </span>
+                </div>
+            `).join("")}
+        </div>
+    `;
 
 }
 

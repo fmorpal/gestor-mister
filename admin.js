@@ -10,7 +10,6 @@
 
 const API_URL =
     "https://script.google.com/macros/s/AKfycbyYp9d0TdPSK0O_dclAv6i-XE29LDkcKcUO1NJEfZqqm42FYCprLgzdGG7-C5Ft_Rwt/exec";
-
 /* La contraseña solo se guarda mientras dura la pestaña. */
 const CLAVE_SESION = "fdj-admin-clave";
 
@@ -44,6 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#botonGuardar").addEventListener("click", guardarCambios);
     $("#formAportacion").addEventListener("submit", manejarNuevaAportacion);
     $("#listaAportaciones").addEventListener("click", manejarClicAportacion);
+    $("#formMulta").addEventListener("submit", manejarNuevaMulta);
+    $("#listaMultasManuales").addEventListener("change", manejarCambioMulta);
+    $("#listaMultasManuales").addEventListener("click", manejarBorrarMulta);
 
     $$(".admin-tab").forEach((tab) => {
         tab.addEventListener("click", () => cambiarPanel(tab.dataset.panel));
@@ -70,6 +72,7 @@ function cambiarPanel(nombre) {
     });
 
     $("#contenido").hidden = nombre !== "jornadas";
+    $("#panelMultas").hidden = nombre !== "multas";
     $("#panelBote").hidden = nombre !== "bote";
 
 }
@@ -138,6 +141,7 @@ async function entrar(clave) {
         poblarSelectJugadores();
         pintarSelectorJornadas();
         pintarAportaciones();
+        pintarMultasManuales();
 
         sessionStorage.setItem(CLAVE_SESION, clave);
 
@@ -587,6 +591,7 @@ async function guardarCambios() {
 
         pintarSelectorJornadas();
         pintarAportaciones();
+        pintarMultasManuales();
 
         /* Volvemos a la misma jornada tras recargar. */
         const numero = estado.jornadaActiva;
@@ -612,18 +617,259 @@ async function guardarCambios() {
 
 
 /* =========================================================
+   MULTAS MANUALES
+========================================================= */
+
+/* Envía una acción al Apps Script y devuelve la respuesta ya validada. */
+async function enviarAccion(cuerpo) {
+
+    const respuesta = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ clave: estado.clave, ...cuerpo })
+    });
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.ok) {
+        throw new Error(resultado.error || "No se pudo completar la acción.");
+    }
+
+    return resultado;
+
+}
+
+
+/* Filas de la hoja "Multas manuales" sin la cabecera. */
+function leerMultasManuales() {
+
+    return ((estado.datos && estado.datos.multasManuales) || []).slice(1)
+        .filter((fila) => fila[0]);
+
+}
+
+
+function filaMultaManual(fila) {
+
+    const [id, fecha, jugador, importe, motivo, pagada] = fila;
+    const estaPagada = String(pagada).trim() === "✓";
+
+    return `
+        <div class="fila-multa ${estaPagada ? "pagada" : ""}">
+
+            <span class="fila-aportacion-datos">
+                <span class="fila-aportacion-nombre">${escapar(jugador)}</span>
+                <span class="fila-aportacion-sub">
+                    ${escapar(fecha)}${motivo ? " · " + escapar(motivo) : ""}
+                </span>
+            </span>
+
+            <span class="fila-multa-importe">${euros(aNumero(importe))}</span>
+
+            <label class="fila-multa-pago">
+                <span class="interruptor">
+                    <input type="checkbox"
+                           data-id="${escapar(id)}"
+                           ${estaPagada ? "checked" : ""}
+                           aria-label="Multa de ${escapar(jugador)} pagada">
+                    <span class="interruptor-pista"></span>
+                </span>
+                ${estaPagada ? "Pagada" : "Pendiente"}
+            </label>
+
+            <button type="button"
+                    class="boton-borrar"
+                    data-id="${escapar(id)}"
+                    aria-label="Borrar multa de ${escapar(jugador)}">
+                <i class="bi bi-trash3"></i>
+            </button>
+
+        </div>
+    `;
+
+}
+
+
+function pintarMultasManuales() {
+
+    const filas = leerMultasManuales();
+
+    const pendientes = filas.filter((f) => String(f[5]).trim() !== "✓");
+    const pagadas = filas.filter((f) => String(f[5]).trim() === "✓");
+
+    const totalPendiente = pendientes.reduce((suma, f) => suma + aNumero(f[3]), 0);
+    $("#multasPendientesCifra").textContent = euros(totalPendiente);
+
+    const lista = $("#listaMultasManuales");
+
+    if (!filas.length) {
+
+        lista.innerHTML = `
+            <div class="vacio">
+                <i class="bi bi-exclamation-octagon"></i>
+                <h3>No hay multas manuales</h3>
+                <p>Pon la primera con el formulario de arriba.</p>
+            </div>
+        `;
+
+        return;
+
+    }
+
+    /* Más recientes primero dentro de cada grupo. */
+    const grupo = (titulo, items) => items.length
+        ? `<h3 class="titulo-grupo">${titulo} (${items.length})</h3>`
+            + items.slice().reverse().map(filaMultaManual).join("")
+        : "";
+
+    lista.innerHTML = grupo("Pendientes", pendientes) + grupo("Pagadas", pagadas);
+
+}
+
+
+async function manejarNuevaMulta(evento) {
+
+    evento.preventDefault();
+
+    const jugador = $("#campoJugadorMulta").value;
+    const importe = parseFloat($("#campoImporteMulta").value);
+    const motivo = $("#campoMotivoMulta").value.trim();
+
+    if (!jugador) {
+        avisar("Elige un jugador.");
+        return;
+    }
+
+    if (!importe || importe <= 0) {
+        avisar("Escribe un importe válido.");
+        return;
+    }
+
+    const boton = $("#botonAnadirMulta");
+    boton.disabled = true;
+    boton.classList.add("girando");
+
+    try {
+
+        const resultado = await enviarAccion({
+            accion: "agregarMultaManual",
+            jugador,
+            importe,
+            motivo
+        });
+
+        estado.datos = resultado.datos;
+        pintarMultasManuales();
+
+        $("#formMulta").reset();
+        avisar("Multa puesta a " + jugador);
+
+    } catch (error) {
+
+        console.error(error);
+        avisar("Error: " + error.message);
+
+    } finally {
+
+        boton.disabled = false;
+        boton.classList.remove("girando");
+
+    }
+
+}
+
+
+/* Interruptor de pagada: se guarda al momento, sin barra de guardado. */
+async function manejarCambioMulta(evento) {
+
+    const campo = evento.target;
+
+    if (!campo.dataset.id) {
+        return;
+    }
+
+    const pagada = campo.checked;
+    campo.disabled = true;
+
+    try {
+
+        const resultado = await enviarAccion({
+            accion: "marcarMultaManual",
+            id: campo.dataset.id,
+            pagada
+        });
+
+        estado.datos = resultado.datos;
+        pintarMultasManuales();
+
+        avisar(pagada ? "Multa marcada como pagada" : "Multa marcada como pendiente");
+
+    } catch (error) {
+
+        console.error(error);
+
+        /* Si falla, devolvemos el interruptor a como estaba. */
+        campo.checked = !pagada;
+        campo.disabled = false;
+
+        avisar("Error: " + error.message);
+
+    }
+
+}
+
+
+async function manejarBorrarMulta(evento) {
+
+    const boton = evento.target.closest(".boton-borrar");
+
+    if (!boton) {
+        return;
+    }
+
+    if (!confirm("¿Borrar esta multa? Desaparecerá también de la web de los jugadores.")) {
+        return;
+    }
+
+    boton.disabled = true;
+
+    try {
+
+        const resultado = await enviarAccion({
+            accion: "eliminarMultaManual",
+            id: boton.dataset.id
+        });
+
+        estado.datos = resultado.datos;
+        pintarMultasManuales();
+
+        avisar("Multa borrada");
+
+    } catch (error) {
+
+        console.error(error);
+        avisar("Error: " + error.message);
+        boton.disabled = false;
+
+    }
+
+}
+
+
+/* =========================================================
    BOTE / APORTACIONES
 ========================================================= */
 
 function poblarSelectJugadores() {
 
-    const select = $("#campoJugadorAportacion");
-
     const opciones = estado.jugadores
         .map((nombre) => `<option value="${escapar(nombre)}">${escapar(nombre)}</option>`)
         .join("");
 
-    select.innerHTML = `<option value="" disabled selected>Jugador…</option>${opciones}`;
+    const html = `<option value="" disabled selected>Jugador…</option>${opciones}`;
+
+    $("#campoJugadorAportacion").innerHTML = html;
+    $("#campoJugadorMulta").innerHTML = html;
 
 }
 
