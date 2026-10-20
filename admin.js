@@ -331,7 +331,7 @@ function elegirJornada(numero) {
         ficha.classList.toggle("activa", activa);
 
         if (activa) {
-            ficha.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+            ficha.scrollIntoView({ behavior: comportamientoScroll(), inline: "center", block: "nearest" });
         }
 
     });
@@ -501,18 +501,40 @@ function buscarFila(tabla, numero) {
    BARRA DE GUARDADO
 ========================================================= */
 
+let temporizadorBarra;
+
 function actualizarBarraGuardado() {
 
     const barra = $("#barraGuardar");
     const cantidad = Object.keys(estado.cambios).length;
 
     if (cantidad === 0) {
-        barra.hidden = true;
+
         $("#estadoGuardado").textContent = "Sin cambios";
+
+        /* Baja con animación y se oculta cuando ya terminó. */
+        if (!barra.hidden) {
+            barra.classList.remove("visible");
+
+            clearTimeout(temporizadorBarra);
+            temporizadorBarra = setTimeout(() => {
+                barra.hidden = true;
+            }, 220);
+        }
+
         return;
     }
 
-    barra.hidden = false;
+    clearTimeout(temporizadorBarra);
+
+    if (barra.hidden) {
+        barra.hidden = false;
+
+        /* Recalculamos para que la subida arranque desde abajo. */
+        void barra.offsetHeight;
+    }
+
+    barra.classList.add("visible");
 
     $("#resumenCambios").textContent = cantidad === 1
         ? "1 jugador modificado"
@@ -1415,18 +1437,41 @@ function escapar(texto) {
 }
 
 
+/* Desplazamiento suave, salvo para quien pidió reducir el movimiento. */
+function comportamientoScroll() {
+
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth";
+
+}
+
+
 let temporizadorAviso;
+let temporizadorOcultarAviso;
 
 function avisar(texto) {
 
     const aviso = $("#aviso");
 
+    clearTimeout(temporizadorAviso);
+    clearTimeout(temporizadorOcultarAviso);
+
     aviso.textContent = texto;
     aviso.hidden = false;
 
-    clearTimeout(temporizadorAviso);
+    /* Recalculamos para que la entrada arranque desde "escondido". */
+    void aviso.offsetWidth;
+    aviso.classList.add("visible");
+
     temporizadorAviso = setTimeout(() => {
-        aviso.hidden = true;
+
+        aviso.classList.remove("visible");
+
+        temporizadorOcultarAviso = setTimeout(() => {
+            aviso.hidden = true;
+        }, 220);
+
     }, 3200);
 
 }

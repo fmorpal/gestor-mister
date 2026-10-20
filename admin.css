@@ -45,6 +45,7 @@ body {
 
 .acceso-caja h1 {
     font-size: 1.3rem;
+    letter-spacing: -.01em;
     margin-bottom: 6px;
 }
 
@@ -99,7 +100,7 @@ body {
     justify-content: center;
     gap: 8px;
 
-    transition: transform .15s ease, background .15s ease;
+    transition: transform 140ms var(--ease-out), background 140ms var(--ease-out);
 }
 
 .boton-principal:active {
@@ -295,12 +296,15 @@ body {
     border-top: 1px solid var(--borde);
     box-shadow: 0 -8px 24px rgba(5, 20, 12, .12);
 
-    animation: subirBarra .2s ease both;
+    /* Sube al haber cambios y baja al guardarlos (antes desaparecía de golpe).
+       La salida es más rápida que la entrada. */
+    transform: translateY(100%);
+    transition: transform 180ms var(--ease-drawer);
 }
 
-@keyframes subirBarra {
-    from { transform: translateY(100%); }
-    to   { transform: none; }
+.barra-guardar.visible {
+    transform: none;
+    transition-duration: 260ms;
 }
 
 #resumenCambios {
@@ -333,6 +337,15 @@ body {
     border-bottom: 1px solid var(--borde);
 }
 
+/* Mismo vidrio que la barra de arriba, para que no parezca una pared pegada debajo */
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+    .admin-tabs {
+        background: color-mix(in srgb, var(--fondo) 78%, transparent);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        backdrop-filter: saturate(180%) blur(20px);
+    }
+}
+
 .admin-tab {
     flex: 1;
     display: flex;
@@ -350,7 +363,11 @@ body {
     font-size: .86rem;
     font-weight: 500;
 
-    transition: background .16s ease, color .16s ease;
+    transition: transform 140ms var(--ease-out), background 160ms ease, color 160ms ease;
+}
+
+.admin-tab:active {
+    transform: scale(.97);
 }
 
 .admin-tab-activo {
@@ -385,6 +402,7 @@ body {
     font-family: var(--titular);
     font-size: 1.6rem;
     font-weight: 600;
+    letter-spacing: -.01em;
     font-variant-numeric: tabular-nums;
 }
 
@@ -545,10 +563,11 @@ body {
     color: var(--texto-3);
     font-size: 1rem;
 
-    transition: background .15s ease, color .15s ease;
+    transition: transform 140ms var(--ease-out), background 140ms var(--ease-out), color 140ms var(--ease-out);
 }
 
 .boton-borrar:active {
+    transform: scale(.92);
     background: var(--error-suave);
     color: var(--error);
 }
@@ -757,4 +776,50 @@ body {
 /* Hueco con el ancho de la papelera en las multas automáticas (no se borran) */
 .boton-borrar-vacio {
     pointer-events: none;
+}
+
+
+/* =========================================================
+   MOVIMIENTO REDUCIDO
+   (el resto está al final de style.css)
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .boton-principal:active,
+    .admin-tab:active,
+    .boton-borrar:active {
+        transform: none;
+    }
+
+    /* La barra de guardar se funde en vez de subir y bajar */
+    .barra-guardar,
+    .barra-guardar.visible {
+        transform: none;
+        transition: opacity 160ms ease;
+    }
+
+    .barra-guardar {
+        opacity: 0;
+    }
+
+    .barra-guardar.visible {
+        opacity: 1;
+    }
+
+}
+
+
+/* =========================================================
+   TRANSPARENCIA REDUCIDA
+========================================================= */
+
+@media (prefers-reduced-transparency: reduce) {
+
+    .admin-tabs {
+        background: var(--fondo);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+
 }

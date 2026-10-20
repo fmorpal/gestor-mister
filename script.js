@@ -877,7 +877,7 @@ function elegirJornada(numero, desplazar = true) {
 
         if (activa && desplazar) {
             ficha.scrollIntoView({
-                behavior: "smooth",
+                behavior: comportamientoScroll(),
                 inline: "center",
                 block: "nearest"
             });
@@ -1018,7 +1018,7 @@ function montarFicha() {
         const fila = evento.target.closest("[data-jugador]");
 
         if (fila) {
-            abrirFicha(fila.dataset.jugador);
+            abrirFicha(fila.dataset.jugador, fila);
         }
 
     });
@@ -1035,7 +1035,37 @@ function montarFicha() {
 }
 
 
-function abrirFicha(nombre) {
+let temporizadorFicha;
+
+/* Ratón en pantalla grande: la ficha sale desde la fila que se tocó.
+   En celular sube desde abajo, como una hoja de iOS. */
+const PANTALLA_DE_RATON = window.matchMedia("(min-width: 700px) and (hover: hover) and (pointer: fine)");
+
+function fijarOrigenFicha(origen) {
+
+    const hoja = $("#sheet");
+
+    hoja.style.transformOrigin = "";
+
+    if (!origen || !PANTALLA_DE_RATON.matches) {
+        return;
+    }
+
+    /* La escala conserva el centro, así que de ahí sacamos la esquina real de la hoja. */
+    const caja = hoja.getBoundingClientRect();
+    const fila = origen.getBoundingClientRect();
+
+    const izquierda = caja.left + caja.width / 2 - hoja.offsetWidth / 2;
+    const arriba = caja.top + caja.height / 2 - hoja.offsetHeight / 2;
+
+    hoja.style.transformOrigin =
+        (fila.left + fila.width / 2 - izquierda) + "px " +
+        (fila.top + fila.height / 2 - arriba) + "px";
+
+}
+
+
+function abrirFicha(nombre, origen) {
 
     const jugador = estado.jugadores.find((j) => j.nombre === nombre);
 
@@ -1123,8 +1153,19 @@ function abrirFicha(nombre) {
         ${fichaMultasManuales(jugador.nombre)}
     `;
 
+    /* Si se reabre mientras todavía se estaba cerrando, cancelamos el ocultado. */
+    clearTimeout(temporizadorFicha);
+
     $("#sheetFondo").hidden = false;
     $("#sheet").hidden = false;
+
+    fijarOrigenFicha(origen);
+
+    /* Forzamos un recálculo para que la transición arranque desde el estado cerrado. */
+    void $("#sheet").offsetHeight;
+
+    $("#sheetFondo").classList.add("abierto");
+    $("#sheet").classList.add("abierto");
 
     document.body.style.overflow = "hidden";
 
@@ -1167,10 +1208,23 @@ function fichaMultasManuales(nombre) {
 
 function cerrarFicha() {
 
-    $("#sheetFondo").hidden = true;
-    $("#sheet").hidden = true;
+    const hoja = $("#sheet");
+
+    if (hoja.hidden) {
+        return;
+    }
+
+    /* Primero se anima la salida; el ocultado real llega cuando ya terminó. */
+    $("#sheetFondo").classList.remove("abierto");
+    hoja.classList.remove("abierto");
 
     document.body.style.overflow = "";
+
+    clearTimeout(temporizadorFicha);
+    temporizadorFicha = setTimeout(() => {
+        $("#sheetFondo").hidden = true;
+        hoja.hidden = true;
+    }, 260);
 
 }
 
@@ -2059,7 +2113,7 @@ function montarOrden() {
             );
 
             chip.scrollIntoView({
-                behavior: "smooth",
+                behavior: comportamientoScroll(),
                 inline: "center",
                 block: "nearest"
             });
@@ -2096,6 +2150,9 @@ function montarTirarParaActualizar() {
         inicioY = evento.touches[0].clientY;
         tirando = true;
 
+        /* Sin transición mientras el dedo arrastra: el indicador lo sigue 1 a 1. */
+        indicador.classList.add("tirando");
+
     }, { passive: true });
 
 
@@ -2128,6 +2185,9 @@ function montarTirarParaActualizar() {
         }
 
         tirando = false;
+
+        /* Al soltar, la altura vuelve con transición en vez de saltar. */
+        indicador.classList.remove("tirando");
 
         if (distancia > UMBRAL) {
 
@@ -2298,7 +2358,26 @@ function plantillaVacio(icono, titulo, texto) {
 }
 
 
-/* Contador animado para las cifras grandes */
+/* Desplazamiento suave, salvo para quien pidió reducir el movimiento.
+   (scrollIntoView con "smooth" explícito ignora ese ajuste del sistema.) */
+function comportamientoScroll() {
+
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth";
+
+}
+
+
+/*
+ * Contador animado para las cifras grandes.
+ *
+ * Solo cuenta desde 0 la primera vez. Los datos se refrescan cada pocos
+ * minutos y al volver a la app: repetir la cuenta cada vez sería animar
+ * algo que se ve muchas veces seguidas. Después, la cifra cambia directo.
+ */
+let contadorCuentas = 0;
+
 function animarEuros(selector, valorFinal) {
 
     const elemento = $(selector);
@@ -2307,17 +2386,28 @@ function animarEuros(selector, valorFinal) {
         return;
     }
 
+    /* Cada llamada cancela la cuenta anterior de este elemento,
+       para que una cuenta vieja no pise el valor nuevo. */
+    const cuenta = String(++contadorCuentas);
+    elemento.dataset.cuenta = cuenta;
+
     const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    if (reducido) {
+    if (reducido || elemento.dataset.animado) {
         elemento.textContent = euros(valorFinal);
         return;
     }
+
+    elemento.dataset.animado = "1";
 
     const inicio = performance.now();
     const duracion = 650;
 
     function paso(ahora) {
+
+        if (elemento.dataset.cuenta !== cuenta) {
+            return;
+        }
 
         const avance = Math.min((ahora - inicio) / duracion, 1);
         const suave = 1 - Math.pow(1 - avance, 3);
@@ -2374,17 +2464,30 @@ function pintarErrorInicial() {
 
 
 let temporizadorAviso;
+let temporizadorOcultarAviso;
 
 function avisar(texto) {
 
     const aviso = $("#aviso");
 
+    clearTimeout(temporizadorAviso);
+    clearTimeout(temporizadorOcultarAviso);
+
     aviso.textContent = texto;
     aviso.hidden = false;
 
-    clearTimeout(temporizadorAviso);
+    /* Recalculamos para que la entrada arranque desde "escondido". */
+    void aviso.offsetWidth;
+    aviso.classList.add("visible");
+
     temporizadorAviso = setTimeout(() => {
-        aviso.hidden = true;
+
+        aviso.classList.remove("visible");
+
+        temporizadorOcultarAviso = setTimeout(() => {
+            aviso.hidden = true;
+        }, 220);
+
     }, 2600);
 
 }

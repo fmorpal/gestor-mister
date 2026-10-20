@@ -42,6 +42,15 @@
     --radio-s: 12px;
     --sombra:  0 1px 2px rgba(10, 30, 20, .06), 0 8px 24px -12px rgba(10, 30, 20, .18);
 
+    /* Curva de salida fuerte: arranca rápido, se siente inmediata */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+    /* Curva de los paneles que suben desde abajo (la de iOS) */
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+    /* Verde de la barra superior, con transparencia para el efecto vidrio */
+    --vidrio-barra: rgba(10, 46, 28, .78);
+
     /* Alturas de las barras fijas */
     --alto-topbar: 56px;
     --alto-tabbar: 60px;
@@ -89,6 +98,18 @@ html {
     /* Safari: evita que el texto crezca al girar el móvil */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+
+    /* Sin el destello gris/azul al tocar. Va en html (se hereda a todo) y no solo en body. */
+    -webkit-tap-highlight-color: transparent;
+
+    /* Sin rebote de iOS ni recarga de Chrome al pasar del borde de arriba:
+       la página ya tiene su propio "tirar para actualizar" y en admin una recarga
+       accidental haría perder cambios sin guardar. */
+    overscroll-behavior-y: none;
+
+    /* Reserva el hueco de la barra de scroll: al abrir la ficha (que bloquea el scroll)
+       la página ya no se mueve de lado en compu. */
+    scrollbar-gutter: stable;
 }
 
 body {
@@ -116,7 +137,17 @@ html {
 h1, h2, h3 {
     font-family: var(--titular);
     font-weight: 600;
-    letter-spacing: .01em;
+
+    /* Apple: el espaciado depende del tamaño, nunca uno fijo.
+       Aquí queda en 0 y cada título grande lo aprieta abajo. */
+    letter-spacing: 0;
+
+    /* Interlineado apretado en títulos (heredaba 1.45, el del texto corrido) */
+    line-height: 1.15;
+
+    /* Reparte las palabras para no dejar una sola colgada en la 2.ª línea */
+    text-wrap: balance;
+
     margin: 0;
 }
 
@@ -125,6 +156,14 @@ input {
     font-family: inherit;
     font-size: 1rem;
     color: inherit;
+}
+
+/* iOS hace zoom en la página si un campo tiene letra de menos de 16px y luego no regresa.
+   Todos los tuyos ya cumplían; esto lo garantiza también para los que añadas. */
+input,
+textarea,
+select {
+    font-size: 16px;
 }
 
 button {
@@ -136,6 +175,19 @@ button {
     padding: 0;
     -webkit-appearance: none;
     appearance: none;
+
+    /* Mantener pulsado un botón no debe seleccionar su texto ni sacar el menú de copiar */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* Lo mismo para el resto de cosas que se tocan */
+a,
+label,
+select,
+[role="button"] {
+    touch-action: manipulation;
 }
 
 :focus-visible {
@@ -148,16 +200,8 @@ button {
     display: none !important;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: .001ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: .001ms !important;
-        scroll-behavior: auto !important;
-    }
-}
+/* El ajuste de "reducir movimiento" está al final de este archivo
+   (sección MOVIMIENTO REDUCIDO), donde puede ganarle a todas las reglas anteriores. */
 
 /* =========================================================
    BARRA SUPERIOR
@@ -172,12 +216,15 @@ button {
 
     padding-top: var(--safe-top);
 
-    background: var(--verde-800);
+    /* Vidrio esmerilado: el contenido pasa por debajo y se ve borroso,
+       en vez de una franja verde opaca. El filo claro de abajo separa sin pared. */
+    background: var(--vidrio-barra);
     color: #fff;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .08);
 
     /* Safari necesita el prefijo para el desenfoque */
-    -webkit-backdrop-filter: saturate(160%) blur(12px);
-    backdrop-filter: saturate(160%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
 }
 
 .topbar-inner {
@@ -246,11 +293,11 @@ button {
     color: #fff;
     font-size: 1.05rem;
 
-    transition: background .18s ease, transform .18s ease;
+    transition: background 140ms var(--ease-out), transform 140ms var(--ease-out);
 }
 
 .boton-icono:active {
-    transform: scale(.92);
+    transform: scale(.95);
     background: rgba(255, 255, 255, .2);
 }
 
@@ -277,8 +324,16 @@ button {
     overflow: hidden;
 
     color: var(--sobre-verde);
-    background: var(--verde-800);
+    background: var(--vidrio-barra);
     font-size: 1.1rem;
+
+    /* Al soltar, vuelve suave en vez de dar un salto */
+    transition: height 220ms var(--ease-out);
+}
+
+/* Mientras el dedo arrastra, sigue al dedo 1 a 1, sin retraso */
+.ptr.tirando {
+    transition: none;
 }
 
 .ptr i {
@@ -312,14 +367,10 @@ button {
     display: none;
 }
 
+/* Cambiar de pestaña se hace decenas de veces al día: sin animación,
+   como en la barra de pestañas de iOS. */
 .vista-activa {
     display: block;
-    animation: entrar .22s ease both;
-}
-
-@keyframes entrar {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: none; }
 }
 
 .titulo-bloque {
@@ -386,7 +437,7 @@ button {
     font-size: clamp(2.6rem, 14vw, 3.4rem);
     font-weight: 700;
     line-height: 1;
-    letter-spacing: -.01em;
+    letter-spacing: -.02em;   /* cifra de ~50 px: lo más apretado */
 
     font-variant-numeric: tabular-nums;
 }
@@ -505,6 +556,7 @@ button {
     font-size: 1.5rem;
     font-weight: 600;
     line-height: 1.1;
+    letter-spacing: -.01em;   /* ~24 px: un poco apretado */
     font-variant-numeric: tabular-nums;
 }
 
@@ -540,11 +592,12 @@ button {
     border: 1px solid var(--borde);
 
     text-align: left;
-    transition: transform .14s ease, background .14s ease;
+    transition: transform 140ms var(--ease-out), background 140ms var(--ease-out);
 }
 
-.fila:active {
-    transform: scale(.985);
+/* Solo las filas que de verdad se tocan (button), no las informativas (div) */
+button.fila:active {
+    transform: scale(.98);
     background: var(--superficie-2);
 }
 
@@ -748,6 +801,12 @@ button {
     color: var(--texto-3);
     font-size: 1rem;
     padding: 4px;
+
+    transition: transform 140ms var(--ease-out);
+}
+
+.buscador-limpiar:active {
+    transform: scale(.92);
 }
 
 .chips {
@@ -779,7 +838,11 @@ button {
     font-size: .84rem;
     font-weight: 500;
 
-    transition: background .16s ease, color .16s ease, border-color .16s ease;
+    transition: transform 140ms var(--ease-out), background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.chip:active {
+    transform: scale(.96);
 }
 
 .chip-activo {
@@ -828,7 +891,7 @@ button {
     background: var(--superficie);
     color: var(--texto-2);
 
-    transition: transform .16s ease, background .16s ease;
+    transition: transform 140ms var(--ease-out), background 160ms ease;
 }
 
 .jornada-pill small {
@@ -855,7 +918,7 @@ button {
 .jornada-pill.parcial  .punto { background: var(--oro); }
 
 .jornada-pill:active {
-    transform: scale(.94);
+    transform: scale(.95);
 }
 
 .jornada-pill.activa {
@@ -885,6 +948,7 @@ button {
 
 .jornada-resumen h2 {
     font-size: 1.15rem;
+    letter-spacing: -.005em;
 }
 
 .jornada-resumen p {
@@ -989,6 +1053,9 @@ button {
 
 .tab i {
     font-size: 1.2rem;
+
+    /* Sin esto el icono "saltaba" a su tamaño pequeño al tocar */
+    transition: transform 140ms var(--ease-out);
 }
 
 .tab span {
@@ -1020,12 +1087,19 @@ button {
     -webkit-backdrop-filter: blur(2px);
     backdrop-filter: blur(2px);
 
-    animation: aparecer .2s ease both;
+    /* Se desvanece al abrir y al cerrar (antes desaparecía de golpe) */
+    opacity: 0;
+    transition: opacity 200ms ease;
 }
 
-@keyframes aparecer {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+.sheet-fondo.abierto {
+    opacity: 1;
+}
+
+/* Mientras se está cerrando no debe atrapar toques */
+.sheet-fondo:not(.abierto),
+.sheet:not(.abierto) {
+    pointer-events: none;
 }
 
 .sheet {
@@ -1047,12 +1121,40 @@ button {
     background: var(--superficie);
     box-shadow: 0 -12px 40px rgba(5, 20, 12, .3);
 
-    animation: subir .28s cubic-bezier(.22, 1, .36, 1) both;
+    /* En celular sube desde el borde de abajo y vuelve por el mismo camino.
+       La salida es más rápida que la entrada: el sistema responde, no hace esperar. */
+    transform: translateY(100%);
+    transition: transform 200ms var(--ease-drawer);
 }
 
-@keyframes subir {
-    from { transform: translateY(100%); }
-    to   { transform: none; }
+.sheet.abierto {
+    transform: none;
+    transition-duration: 300ms;
+}
+
+/* En compu (ratón): la ficha sale de la fila que tocaste, como un popover de macOS.
+   El punto de origen lo pone script.js en transform-origin. */
+@media (min-width: 700px) and (hover: hover) and (pointer: fine) {
+
+    .sheet {
+        left: 0;
+        right: 0;
+        bottom: 24px;
+        width: min(560px, calc(100% - 32px));
+        margin: 0 auto;
+        border-radius: 24px;
+
+        opacity: 0;
+        transform: scale(.94);
+        transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
+    }
+
+    .sheet.abierto {
+        opacity: 1;
+        transform: none;
+        transition-duration: 240ms;
+    }
+
 }
 
 .sheet-tirador {
@@ -1074,7 +1176,8 @@ button {
 
 .sheet-cabecera h2 {
     font-size: 1.3rem;
-    line-height: 1.15;
+    line-height: 1.1;
+    letter-spacing: -.01em;
 }
 
 .sheet-cabecera p {
@@ -1165,8 +1268,12 @@ button {
     position: fixed;
     left: 50%;
     bottom: calc(var(--alto-tabbar) + var(--safe-bottom) + 14px);
-    transform: translateX(-50%);
     z-index: 50;
+
+    /* Entra subiendo un poco y sale igual (antes desaparecía de golpe) */
+    opacity: 0;
+    transform: translate(-50%, 8px);
+    transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
 
     max-width: calc(100vw - 32px);
     padding: 9px 16px;
@@ -1181,7 +1288,11 @@ button {
     text-overflow: ellipsis;
 
     box-shadow: 0 8px 24px rgba(5, 20, 12, .35);
-    animation: aparecer .2s ease both;
+}
+
+.aviso.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
 }
 
 /* =========================================================
@@ -1332,9 +1443,12 @@ button {
     border-radius: 50%;
     color: var(--texto-3);
     font-size: .85rem;
+
+    transition: transform 140ms var(--ease-out), background 140ms var(--ease-out), color 140ms var(--ease-out);
 }
 
 .anuncio-cerrar:active {
+    transform: scale(.94);
     background: var(--superficie-2);
     color: var(--texto);
 }
@@ -1354,6 +1468,12 @@ button {
     color: var(--texto-2);
     background: var(--superficie);
     border: 1px solid var(--borde);
+
+    transition: transform 140ms var(--ease-out);
+}
+
+.tablon-mas:active {
+    transform: scale(.97);
 }
 
 
@@ -1549,6 +1669,12 @@ button {
     color: var(--texto-2);
     background: var(--superficie-2);
     border: 1px solid var(--borde);
+
+    transition: transform 140ms var(--ease-out);
+}
+
+.grafica-chip:active {
+    transform: scale(.96);
 }
 
 .grafica-chip-on {
@@ -1595,4 +1721,124 @@ button {
 /* Evita que un texto largo ensanche la cuadrícula en pantallas estrechas */
 .rejilla-datos > * {
     min-width: 0;
+}
+
+
+/* =========================================================
+   LETRA CHICA
+   Al revés que los títulos grandes: el texto pequeño se lee mejor
+   con un poquito más de aire entre letras.
+========================================================= */
+
+.dato-etiqueta,
+.dato-pie,
+.fila-sub,
+.fila-etiqueta,
+.nota-pie,
+.stats-nota,
+.grafica-cabecera,
+.grafica-ayuda,
+.distintivo {
+    letter-spacing: .01em;
+}
+
+
+/* =========================================================
+   MOVIMIENTO REDUCIDO
+   "Reducir movimiento" no quiere decir "sin respuesta": se quitan los
+   deslizamientos, encogidos y giros, pero se conservan los cambios de
+   color y los fundidos, que ayudan a entender qué pasó.
+   (Antes una regla bruta apagaba TODO, incluido el giro que avisa que
+   está cargando; así la gente se quedaba sin saber si algo pasaba.)
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    html {
+        scroll-behavior: auto;
+    }
+
+    /* Al tocar no se encogen; siguen cambiando de color como antes */
+    .boton-icono:active,
+    button.fila:active,
+    .chip:active,
+    .jornada-pill:active,
+    .tab:active i,
+    .buscador-limpiar:active,
+    .anuncio-cerrar:active,
+    .tablon-mas:active,
+    .grafica-chip:active {
+        transform: none;
+    }
+
+    /* La ficha y el aviso se funden en vez de deslizarse o crecer */
+    .sheet,
+    .sheet.abierto {
+        transform: none;
+        transition: opacity 160ms ease;
+    }
+
+    .sheet {
+        opacity: 0;
+    }
+
+    .sheet.abierto {
+        opacity: 1;
+    }
+
+    .aviso,
+    .aviso.visible {
+        transform: translate(-50%, 0);
+        transition: opacity 160ms ease;
+    }
+
+    /* El giro continuo se cambia por un parpadeo suave: sigue avisando que carga */
+    .boton-icono.girando i,
+    .ptr.cargando i {
+        animation: latido 1.1s ease-in-out infinite;
+    }
+
+    .ptr.listo i {
+        transform: none;
+    }
+
+    /* Sin barrido de brillo en los esqueletos de carga */
+    .esqueleto {
+        animation: none;
+    }
+
+    /* La barra del bote ya no "crece": aparece con su valor */
+    .barra-bote span {
+        transition: none;
+    }
+
+}
+
+
+/* =========================================================
+   TRANSPARENCIA REDUCIDA
+   Quien lo activa en su sistema prefiere superficies sólidas:
+   quitamos el vidrio y dejamos colores planos.
+========================================================= */
+
+@media (prefers-reduced-transparency: reduce) {
+
+    .topbar,
+    .ptr {
+        background: var(--verde-800);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+
+    .tabbar {
+        background: var(--superficie);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+
+    .sheet-fondo {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+
 }
