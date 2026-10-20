@@ -1109,6 +1109,54 @@ button {
     font-variant-numeric: tabular-nums;
 }
 
+/* Multas dentro de la ficha del jugador */
+
+.sheet-subtitulo {
+    margin: 18px 0 8px;
+    font-size: 1rem;
+}
+
+.sheet-multas {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sheet-multa {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 10px 13px;
+    border-radius: var(--radio-s);
+    background: var(--superficie-2);
+    border: 1px solid var(--borde);
+
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.sheet-multa-texto {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sheet-multa-texto b {
+    font-weight: 600;
+    font-size: .88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sheet-multa-texto small {
+    font-weight: 400;
+    font-size: .72rem;
+    color: var(--texto-2);
+}
+
 /* =========================================================
    AVISO FLOTANTE
 ========================================================= */
@@ -1165,4 +1213,386 @@ button {
         border: 1px solid var(--borde);
         border-radius: 18px 18px 0 0;
     }
+}
+
+
+/* =========================================================
+   TABLÓN DE ANUNCIOS
+========================================================= */
+
+.tablon {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.tablon-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 2px 2px 0;
+    color: var(--texto-2);
+}
+
+.tablon-cabecera i {
+    color: var(--cesped);
+}
+
+.tablon-cabecera h2 {
+    margin: 0;
+    font-size: .82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.anuncio {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+
+    padding: 12px 10px 12px 13px;
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-left: 4px solid var(--cesped);
+}
+
+.anuncio-importante { border-left-color: var(--alerta); background: var(--alerta-suave); }
+.anuncio-urgente    { border-left-color: var(--error);  background: var(--error-suave); }
+
+.anuncio-icono {
+    flex: none;
+    margin-top: 2px;
+    font-size: 1.05rem;
+    color: var(--cesped);
+}
+
+.anuncio-importante .anuncio-icono { color: var(--alerta); }
+.anuncio-urgente .anuncio-icono    { color: var(--error); }
+
+.anuncio-cuerpo {
+    flex: 1;
+    min-width: 0;
+}
+
+.anuncio-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--texto-2);
+}
+
+.anuncio-fijado {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.anuncio-fecha {
+    margin-left: auto;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--texto-3);
+}
+
+.anuncio-titulo {
+    margin: 4px 0 0;
+    font-size: 1rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.anuncio-texto {
+    margin: 3px 0 0;
+    font-size: .9rem;
+    line-height: 1.45;
+    color: var(--texto);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.anuncio-cerrar {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    margin: -4px -2px 0 0;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 50%;
+    color: var(--texto-3);
+    font-size: .85rem;
+}
+
+.anuncio-cerrar:active {
+    background: var(--superficie-2);
+    color: var(--texto);
+}
+
+.tablon-mas {
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 99px;
+
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--texto-2);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+}
+
+
+/* =========================================================
+   ESTADÍSTICAS
+========================================================= */
+
+:root {
+    --serie-1: #2a78d6;
+    --serie-2: #eb6834;
+    --serie-3: #1baf7a;
+    --serie-4: #6250d6;
+    --grafica-muda: #c4cec8;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --serie-1: #3987e5;
+        --serie-2: #d95926;
+        --serie-3: #199e70;
+        --serie-4: #9085e9;
+        --grafica-muda: #3a4b43;
+    }
+}
+
+.titulo-primero {
+    margin-top: 4px;
+}
+
+.stats-nota {
+    margin: -4px 0 10px;
+    font-size: .78rem;
+    color: var(--texto-3);
+}
+
+.fila-clasif {
+    cursor: default;
+}
+
+.puesto {
+    flex: none;
+    width: 26px;
+    height: 26px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 50%;
+    font-family: var(--titular);
+    font-size: .88rem;
+    font-weight: 600;
+    background: var(--superficie-2);
+    color: var(--texto-2);
+}
+
+.puesto-1 { background: var(--oro); color: #3a2a00; }
+.puesto-2 { background: #cfd6d2; color: #2b3732; }
+.puesto-3 { background: #d9a77a; color: #3b2410; }
+
+.cambio {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    font-size: .7rem;
+    font-weight: 700;
+}
+
+.cambio-sube  { color: var(--exito); }
+.cambio-baja  { color: var(--error); }
+.cambio-igual { color: var(--texto-3); }
+
+/* Gráfica */
+
+.grafica {
+    padding: 14px 12px 12px;
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+}
+
+.grafica-cabecera {
+    margin: 0 2px 8px;
+    font-size: .78rem;
+    color: var(--texto-2);
+}
+
+.grafica-lienzo {
+    width: 100%;
+    min-height: 230px;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.grafica-lienzo svg {
+    display: block;
+    max-width: 100%;
+    overflow: visible;
+}
+
+.g-rejilla {
+    stroke: var(--borde);
+    stroke-width: 1;
+}
+
+.g-eje {
+    fill: var(--texto-3);
+    font-size: 11px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+}
+
+.g-cursor {
+    stroke: var(--texto-3);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+}
+
+.g-linea-muda,
+.g-linea {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.g-linea-muda {
+    stroke: var(--grafica-muda);
+    stroke-width: 1.25;
+}
+
+.g-linea {
+    stroke-width: 2.5;
+}
+
+.g-punto {
+    stroke: var(--superficie);
+    stroke-width: 2;
+}
+
+.grafica-lectura {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin: 8px 2px 0;
+    font-size: .8rem;
+    color: var(--texto-2);
+}
+
+.lectura-jornada {
+    font-weight: 700;
+    color: var(--texto);
+}
+
+.lectura-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.lectura-item b {
+    color: var(--texto);
+}
+
+.grafica-punto {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--grafica-muda);
+}
+
+.grafica-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.grafica-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 99px;
+
+    font-size: .8rem;
+    font-weight: 500;
+    color: var(--texto-2);
+    background: var(--superficie-2);
+    border: 1px solid var(--borde);
+}
+
+.grafica-chip-on {
+    color: var(--texto);
+    font-weight: 600;
+    border-color: var(--texto-3);
+}
+
+.grafica-ayuda {
+    margin: 10px 2px 0;
+    font-size: .72rem;
+    color: var(--texto-3);
+}
+
+/* Tarjetas de estadísticas */
+
+.dato-stat .dato-etiqueta i {
+    color: var(--cesped);
+}
+
+.dato-valor-texto {
+    font-size: 1.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Cuatro pestañas en pantallas muy estrechas */
+@media (max-width: 359px) {
+    .tab { font-size: .62rem; }
+    .tab i { font-size: 1.1rem; }
+}
+
+@media (min-width: 600px) {
+    .rejilla-stats {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .anuncio {
+        padding: 14px 12px 14px 16px;
+    }
+}
+
+/* Evita que un texto largo ensanche la cuadrícula en pantallas estrechas */
+.rejilla-datos > * {
+    min-width: 0;
 }

@@ -10,6 +10,7 @@
 
 const API_URL =
     "https://script.google.com/macros/s/AKfycbyYp9d0TdPSK0O_dclAv6i-XE29LDkcKcUO1NJEfZqqm42FYCprLgzdGG7-C5Ft_Rwt/exec";
+
 /* La contraseña solo se guarda mientras dura la pestaña. */
 const CLAVE_SESION = "fdj-admin-clave";
 
@@ -21,7 +22,7 @@ const estado = {
     jornadaActiva: null,
     cambios: {},       // { "NombreJugador": { posicion, pagado, multaPagada } }
     guardando: false,
-    panel: "jornadas"  // "jornadas" | "bote"
+    panel: "jornadas"  // "jornadas" | "multas" | "bote" | "anuncios"
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -46,6 +47,9 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#formMulta").addEventListener("submit", manejarNuevaMulta);
     $("#listaMultasManuales").addEventListener("change", manejarCambioMulta);
     $("#listaMultasManuales").addEventListener("click", manejarBorrarMulta);
+    $("#formAnuncio").addEventListener("submit", manejarNuevoAnuncio);
+    $("#listaAnuncios").addEventListener("change", manejarCambioAnuncio);
+    $("#listaAnuncios").addEventListener("click", manejarBorrarAnuncio);
 
     $$(".admin-tab").forEach((tab) => {
         tab.addEventListener("click", () => cambiarPanel(tab.dataset.panel));
@@ -74,6 +78,7 @@ function cambiarPanel(nombre) {
     $("#contenido").hidden = nombre !== "jornadas";
     $("#panelMultas").hidden = nombre !== "multas";
     $("#panelBote").hidden = nombre !== "bote";
+    $("#panelAnuncios").hidden = nombre !== "anuncios";
 
 }
 
@@ -142,6 +147,7 @@ async function entrar(clave) {
         pintarSelectorJornadas();
         pintarAportaciones();
         pintarMultasManuales();
+        pintarAnuncios();
 
         sessionStorage.setItem(CLAVE_SESION, clave);
 
@@ -592,6 +598,7 @@ async function guardarCambios() {
         pintarSelectorJornadas();
         pintarAportaciones();
         pintarMultasManuales();
+        pintarAnuncios();
 
         /* Volvemos a la misma jornada tras recargar. */
         const numero = estado.jornadaActiva;
@@ -649,40 +656,106 @@ function leerMultasManuales() {
 }
 
 
+/* Multas automáticas (jornadas sin pagar): hojas "Multas" y "Multas pagadas". */
+function leerMultasAutomaticas() {
+
+    const multas = (estado.datos && estado.datos.multas) || [];
+    const pagadas = (estado.datos && estado.datos.multasPagadas) || [];
+
+    const cabecera = multas[0] || [];
+    const cabeceraPagadas = pagadas[0] || [];
+    const lista = [];
+
+    for (let i = 1; i < multas.length; i++) {
+
+        const jornada = String(multas[i][0]);
+        const filaPagada = pagadas.find((f) => String(f[0]) === jornada);
+
+        for (let c = 1; c < cabecera.length; c++) {
+
+            const importe = aNumero(multas[i][c]);
+
+            if (importe <= 0 || !cabecera[c]) {
+                continue;
+            }
+
+            const colPagada = cabeceraPagadas.indexOf(cabecera[c]);
+
+            lista.push({
+                automatica: true,
+                jornada,
+                jugador: String(cabecera[c]).trim(),
+                importe,
+                pagada: !!filaPagada && colPagada > -1
+                    && String(filaPagada[colPagada]).trim() === "✓"
+            });
+
+        }
+
+    }
+
+    /* Jornadas más recientes primero. */
+    return lista.sort((x, y) => Number(y.jornada) - Number(x.jornada));
+
+}
+
+
 function filaMultaManual(fila) {
 
     const [id, fecha, jugador, importe, motivo, pagada] = fila;
-    const estaPagada = String(pagada).trim() === "✓";
+
+    return filaMulta({
+        automatica: false,
+        id,
+        jugador,
+        importe: aNumero(importe),
+        pagada: String(pagada).trim() === "✓",
+        sub: fecha + (motivo ? " · " + motivo : "")
+    });
+
+}
+
+
+function filaMulta(m) {
+
+    const estaPagada = m.pagada;
+    const sub = m.automatica ? "Multa automática jornadas · J" + m.jornada : m.sub;
+
+    const atributos = m.automatica
+        ? `data-jornada="${escapar(m.jornada)}" data-jugador="${escapar(m.jugador)}"`
+        : `data-id="${escapar(m.id)}"`;
 
     return `
         <div class="fila-multa ${estaPagada ? "pagada" : ""}">
 
             <span class="fila-aportacion-datos">
-                <span class="fila-aportacion-nombre">${escapar(jugador)}</span>
-                <span class="fila-aportacion-sub">
-                    ${escapar(fecha)}${motivo ? " · " + escapar(motivo) : ""}
-                </span>
+                <span class="fila-aportacion-nombre">${escapar(m.jugador)}</span>
+                <span class="fila-aportacion-sub">${escapar(sub)}</span>
             </span>
 
-            <span class="fila-multa-importe">${euros(aNumero(importe))}</span>
+            <span class="fila-multa-importe">${euros(m.importe)}</span>
 
             <label class="fila-multa-pago">
                 <span class="interruptor">
                     <input type="checkbox"
-                           data-id="${escapar(id)}"
+                           ${atributos}
                            ${estaPagada ? "checked" : ""}
-                           aria-label="Multa de ${escapar(jugador)} pagada">
+                           aria-label="Multa de ${escapar(m.jugador)} pagada">
                     <span class="interruptor-pista"></span>
                 </span>
                 ${estaPagada ? "Pagada" : "Pendiente"}
             </label>
 
-            <button type="button"
-                    class="boton-borrar"
-                    data-id="${escapar(id)}"
-                    aria-label="Borrar multa de ${escapar(jugador)}">
-                <i class="bi bi-trash3"></i>
-            </button>
+            ${m.automatica ? `
+                <span class="boton-borrar boton-borrar-vacio" aria-hidden="true"></span>
+            ` : `
+                <button type="button"
+                        class="boton-borrar"
+                        data-id="${escapar(m.id)}"
+                        aria-label="Borrar multa de ${escapar(m.jugador)}">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            `}
 
         </div>
     `;
@@ -692,22 +765,35 @@ function filaMultaManual(fila) {
 
 function pintarMultasManuales() {
 
-    const filas = leerMultasManuales();
+    const manuales = leerMultasManuales().map((f) => ({
+        manual: true,
+        pagada: String(f[5]).trim() === "✓",
+        importe: aNumero(f[3]),
+        html: filaMultaManual(f)
+    })).reverse();
 
-    const pendientes = filas.filter((f) => String(f[5]).trim() !== "✓");
-    const pagadas = filas.filter((f) => String(f[5]).trim() === "✓");
+    const automaticas = leerMultasAutomaticas().map((m) => ({
+        pagada: m.pagada,
+        importe: m.importe,
+        html: filaMulta(m)
+    }));
 
-    const totalPendiente = pendientes.reduce((suma, f) => suma + aNumero(f[3]), 0);
+    const todas = manuales.concat(automaticas);
+
+    const pendientes = todas.filter((m) => !m.pagada);
+    const pagadas = todas.filter((m) => m.pagada);
+
+    const totalPendiente = pendientes.reduce((suma, m) => suma + m.importe, 0);
     $("#multasPendientesCifra").textContent = euros(totalPendiente);
 
     const lista = $("#listaMultasManuales");
 
-    if (!filas.length) {
+    if (!todas.length) {
 
         lista.innerHTML = `
             <div class="vacio">
                 <i class="bi bi-exclamation-octagon"></i>
-                <h3>No hay multas manuales</h3>
+                <h3>No hay multas</h3>
                 <p>Pon la primera con el formulario de arriba.</p>
             </div>
         `;
@@ -716,10 +802,9 @@ function pintarMultasManuales() {
 
     }
 
-    /* Más recientes primero dentro de cada grupo. */
     const grupo = (titulo, items) => items.length
         ? `<h3 class="titulo-grupo">${titulo} (${items.length})</h3>`
-            + items.slice().reverse().map(filaMultaManual).join("")
+            + items.map((m) => m.html).join("")
         : "";
 
     lista.innerHTML = grupo("Pendientes", pendientes) + grupo("Pagadas", pagadas);
@@ -784,7 +869,9 @@ async function manejarCambioMulta(evento) {
 
     const campo = evento.target;
 
-    if (!campo.dataset.id) {
+    const esAutomatica = !!campo.dataset.jornada;
+
+    if (!campo.dataset.id && !esAutomatica) {
         return;
     }
 
@@ -793,11 +880,18 @@ async function manejarCambioMulta(evento) {
 
     try {
 
-        const resultado = await enviarAccion({
-            accion: "marcarMultaManual",
-            id: campo.dataset.id,
-            pagada
-        });
+        const resultado = await enviarAccion(esAutomatica
+            ? {
+                accion: "marcarMultaAutomatica",
+                jornada: Number(campo.dataset.jornada),
+                jugador: campo.dataset.jugador,
+                pagada
+            }
+            : {
+                accion: "marcarMultaManual",
+                id: campo.dataset.id,
+                pagada
+            });
 
         estado.datos = resultado.datos;
         pintarMultasManuales();
@@ -844,6 +938,226 @@ async function manejarBorrarMulta(evento) {
         pintarMultasManuales();
 
         avisar("Multa borrada");
+
+    } catch (error) {
+
+        console.error(error);
+        avisar("Error: " + error.message);
+        boton.disabled = false;
+
+    }
+
+}
+
+
+/* =========================================================
+   TABLÓN DE ANUNCIOS
+========================================================= */
+
+const ETIQUETAS_ANUNCIO = {
+    info: "Información",
+    importante: "Importante",
+    urgente: "Urgente"
+};
+
+/* Filas de la hoja "Anuncios" sin la cabecera. */
+function leerAnuncios() {
+
+    return ((estado.datos && estado.datos.anuncios) || []).slice(1)
+        .filter((fila) => fila[0]);
+
+}
+
+
+function filaAnuncio(fila) {
+
+    const [id, fecha, titulo, mensaje, tipoBruto, fijadoBruto, visibleBruto] = fila;
+
+    const tipo = ETIQUETAS_ANUNCIO[tipoBruto] ? tipoBruto : "info";
+    const fijado = String(fijadoBruto).trim() === "✓";
+    const visible = String(visibleBruto).trim() === "✓";
+
+    const interruptor = (campo, activo, texto) => `
+        <label class="fila-multa-pago">
+            <span class="interruptor">
+                <input type="checkbox"
+                       data-id="${escapar(id)}"
+                       data-campo="${campo}"
+                       ${activo ? "checked" : ""}
+                       aria-label="${texto}">
+                <span class="interruptor-pista"></span>
+            </span>
+            ${texto}
+        </label>
+    `;
+
+    return `
+        <article class="fila-anuncio fila-anuncio-${tipo} ${visible ? "" : "oculto"}">
+
+            <div class="fila-anuncio-cabecera">
+                <span class="etiqueta-anuncio etiqueta-anuncio-${tipo}">
+                    ${ETIQUETAS_ANUNCIO[tipo]}
+                </span>
+                ${fijado ? '<span class="etiqueta-fijado"><i class="bi bi-pin-angle-fill"></i> Fijado</span>' : ""}
+                <span class="fila-anuncio-fecha">${escapar(fecha)}</span>
+            </div>
+
+            ${titulo ? `<h4 class="fila-anuncio-titulo">${escapar(titulo)}</h4>` : ""}
+            ${mensaje ? `<p class="fila-anuncio-mensaje">${escapar(mensaje)}</p>` : ""}
+
+            <div class="fila-anuncio-acciones">
+                ${interruptor("visible", visible, "Visible")}
+                ${interruptor("fijado", fijado, "Fijado")}
+                <button type="button"
+                        class="boton-borrar"
+                        data-id="${escapar(id)}"
+                        aria-label="Borrar anuncio">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </div>
+
+        </article>
+    `;
+
+}
+
+
+function pintarAnuncios() {
+
+    const filas = leerAnuncios();
+    const lista = $("#listaAnuncios");
+
+    if (!filas.length) {
+
+        lista.innerHTML = `
+            <div class="vacio">
+                <i class="bi bi-megaphone"></i>
+                <h3>No hay anuncios</h3>
+                <p>Publica el primero con el formulario de arriba.</p>
+            </div>
+        `;
+
+        return;
+
+    }
+
+    lista.innerHTML = filas.slice().reverse().map(filaAnuncio).join("");
+
+}
+
+
+async function manejarNuevoAnuncio(evento) {
+
+    evento.preventDefault();
+
+    const titulo = $("#campoTituloAnuncio").value.trim();
+    const mensaje = $("#campoMensajeAnuncio").value.trim();
+
+    if (!titulo && !mensaje) {
+        avisar("Escribe un título o un mensaje.");
+        return;
+    }
+
+    const boton = $("#botonAnadirAnuncio");
+    boton.disabled = true;
+    boton.classList.add("girando");
+
+    try {
+
+        const resultado = await enviarAccion({
+            accion: "agregarAnuncio",
+            titulo,
+            mensaje,
+            tipo: $("#campoTipoAnuncio").value,
+            fijado: $("#campoFijarAnuncio").checked
+        });
+
+        estado.datos = resultado.datos;
+        pintarAnuncios();
+
+        $("#formAnuncio").reset();
+        avisar("Anuncio publicado");
+
+    } catch (error) {
+
+        console.error(error);
+        avisar("Error: " + error.message);
+
+    } finally {
+
+        boton.disabled = false;
+        boton.classList.remove("girando");
+
+    }
+
+}
+
+
+/* Los interruptores de visible/fijado se guardan al momento. */
+async function manejarCambioAnuncio(evento) {
+
+    const campo = evento.target;
+
+    if (!campo.dataset.id || !campo.dataset.campo) {
+        return;
+    }
+
+    const valor = campo.checked;
+    campo.disabled = true;
+
+    try {
+
+        const resultado = await enviarAccion({
+            accion: "marcarAnuncio",
+            id: campo.dataset.id,
+            campo: campo.dataset.campo,
+            valor
+        });
+
+        estado.datos = resultado.datos;
+        pintarAnuncios();
+
+        avisar("Anuncio actualizado");
+
+    } catch (error) {
+
+        console.error(error);
+
+        campo.checked = !valor;
+        campo.disabled = false;
+
+        avisar("Error: " + error.message);
+
+    }
+
+}
+
+
+async function manejarBorrarAnuncio(evento) {
+
+    const boton = evento.target.closest(".boton-borrar");
+
+    if (!boton) {
+        return;
+    }
+
+    if (!confirm("¿Borrar este anuncio? Desaparecerá de la web de los jugadores.")) {
+        return;
+    }
+
+    boton.disabled = true;
+
+    try {
+
+        const resultado = await enviarAccion({
+            accion: "eliminarAnuncio",
+            id: boton.dataset.id
+        });
+
+        estado.datos = resultado.datos;
+        pintarAnuncios();
+
+        avisar("Anuncio borrado");
 
     } catch (error) {
 

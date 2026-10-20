@@ -89,6 +89,9 @@
 <!-- ------------------- RESUMEN ------------------- -->
 <section class="vista vista-activa" id="vista-resumen" aria-label="Resumen">
 
+    <!-- Tablón de anuncios (se rellena desde script.js; oculto si no hay) -->
+    <section class="tablon" id="tablon" aria-label="Tablón de anuncios" hidden></section>
+
     <div class="marcador">
 
         <div class="marcador-cabecera">
@@ -215,6 +218,48 @@
 
 </section>
 
+<!-- ------------------- ESTADÍSTICAS ------------------- -->
+<section class="vista" id="vista-estadisticas" aria-label="Estadísticas" hidden>
+
+    <div id="statsVacio" hidden></div>
+
+    <div id="statsContenido">
+
+        <h2 class="titulo-bloque titulo-primero">Clasificación acumulada</h2>
+
+        <p class="stats-nota">
+            Cada jornada suma tantos puntos como jugadores superas:
+            el 1.º se lleva el máximo y el último, 1 punto.
+        </p>
+
+        <div class="lista" id="listaClasificacion"></div>
+
+        <h2 class="titulo-bloque">Evolución</h2>
+
+        <div class="grafica" id="grafica">
+
+            <div class="grafica-cabecera">
+                <span>Puesto en la clasificación, jornada a jornada</span>
+            </div>
+
+            <div class="grafica-lienzo" id="graficaLienzo"></div>
+
+            <p class="grafica-lectura" id="graficaLectura" aria-live="polite"></p>
+
+            <div class="grafica-chips" id="graficaChips" role="group" aria-label="Jugadores a resaltar"></div>
+
+            <p class="grafica-ayuda">Toca o desliza sobre la gráfica para ver cada jornada. Elige hasta 4 jugadores.</p>
+
+        </div>
+
+        <h2 class="titulo-bloque">Más estadísticas</h2>
+
+        <div class="rejilla-datos rejilla-stats" id="statsExtra"></div>
+
+    </div>
+
+</section>
+
 </main>
 
 
@@ -237,6 +282,11 @@
     <button type="button" class="tab" data-vista="jornadas">
         <i class="bi bi-calendar3"></i>
         <span>Jornadas</span>
+    </button>
+
+    <button type="button" class="tab" data-vista="estadisticas">
+        <i class="bi bi-bar-chart-line-fill"></i>
+        <span>Estadísticas</span>
     </button>
 
 </nav>

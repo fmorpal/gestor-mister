@@ -116,6 +116,10 @@
         <i class="bi bi-piggy-bank"></i>
         Bote
     </button>
+    <button type="button" class="admin-tab" data-panel="anuncios">
+        <i class="bi bi-megaphone"></i>
+        Anuncios
+    </button>
 </nav>
 
 
@@ -127,9 +131,9 @@
 
     <p class="aviso-info">
         <i class="bi bi-info-circle"></i>
-        Elige una jornada, ajusta posiciones, pagos y multas, y pulsa
+        <span>Elige una jornada, ajusta posiciones, pagos y multas, y pulsa
         <b>Guardar cambios</b>. El resto de la liga (resumen, saldos)
-        se recalcula solo.
+        se recalcula solo.</span>
     </p>
 
     <div class="jornada-pills" id="selectorJornada" role="tablist" aria-label="Elegir jornada"></div>
@@ -147,14 +151,14 @@
 
     <p class="aviso-info">
         <i class="bi bi-info-circle"></i>
-        Pon una multa a un jugador con el importe que quieras. La verán
-        todos en la web, se suma a sus multas pendientes y al total de la
-        liga. Cuando la pague, activa el interruptor: pasa a pagada al
-        instante.
+        <span>Pon una multa a un jugador con el importe que quieras. Aquí también
+        salen las <b>multas automáticas</b> (jornada sin pagar cuando ya se
+        han registrado 4 jornadas más). Todas las ven los jugadores en la web.
+        Cuando alguien pague, activa el interruptor: pasa a pagada al instante.</span>
     </p>
 
     <div class="bote-total">
-        <span>Multas manuales pendientes</span>
+        <span>Multas pendientes</span>
         <strong id="multasPendientesCifra">0 €</strong>
     </div>
 
@@ -199,9 +203,9 @@
 
     <p class="aviso-info">
         <i class="bi bi-info-circle"></i>
-        Dinero que alguien pone por su cuenta, aparte de las jornadas
+        <span>Dinero que alguien pone por su cuenta, aparte de las jornadas
         (por ejemplo, entre todos para comprar algo). Se suma al total
-        cobrado de la liga; no afecta a la deuda de nadie.
+        cobrado de la liga; no afecta a la deuda de nadie.</span>
     </p>
 
     <div class="bote-total" id="boteTotal">
@@ -238,6 +242,56 @@
     </form>
 
     <div class="lista" id="listaAportaciones"></div>
+
+</main>
+
+
+<!-- =========================================================
+     CONTENIDO — TABLÓN DE ANUNCIOS
+========================================================= -->
+
+<main id="panelAnuncios" hidden>
+
+    <p class="aviso-info">
+        <i class="bi bi-info-circle"></i>
+        <span>Publica avisos para todos los jugadores: aparecen arriba del
+        Resumen en la web. Los <b>fijados</b> salen primero. Con el
+        interruptor <b>Visible</b> puedes ocultar un anuncio sin borrarlo.</span>
+    </p>
+
+    <form id="formAnuncio" class="form-anuncio">
+
+        <input type="text"
+               id="campoTituloAnuncio"
+               placeholder="Título"
+               maxlength="120"
+               aria-label="Título del anuncio">
+
+        <textarea id="campoMensajeAnuncio"
+                  rows="3"
+                  maxlength="1000"
+                  placeholder="Mensaje"
+                  aria-label="Mensaje del anuncio"></textarea>
+
+        <select id="campoTipoAnuncio" aria-label="Tipo de anuncio">
+            <option value="info">Información</option>
+            <option value="importante">Importante</option>
+            <option value="urgente">Urgente</option>
+        </select>
+
+        <label class="form-anuncio-fijar">
+            <input type="checkbox" id="campoFijarAnuncio">
+            <span>Fijar arriba</span>
+        </label>
+
+        <button type="submit" class="boton-principal boton-pequeno" id="botonAnadirAnuncio">
+            <i class="bi bi-send"></i>
+            Publicar
+        </button>
+
+    </form>
+
+    <div class="lista" id="listaAnuncios"></div>
 
 </main>
 

@@ -601,3 +601,160 @@ body {
     flex-wrap: wrap;
     row-gap: 8px;
 }
+
+
+
+/* ---------------------------------------------------------
+   TABLÓN DE ANUNCIOS (admin)
+--------------------------------------------------------- */
+
+.form-anuncio {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.form-anuncio input[type="text"],
+.form-anuncio textarea,
+.form-anuncio select {
+    padding: 0 14px;
+
+    border-radius: 12px;
+    border: 1px solid var(--borde);
+    background: var(--superficie);
+    color: var(--texto);
+
+    font: inherit;
+    font-size: 16px;
+}
+
+.form-anuncio input[type="text"],
+.form-anuncio select {
+    height: 44px;
+}
+
+.form-anuncio textarea {
+    padding: 11px 14px;
+    resize: vertical;
+    min-height: 84px;
+    line-height: 1.4;
+}
+
+.form-anuncio input[type="text"]:focus,
+.form-anuncio textarea:focus,
+.form-anuncio select:focus {
+    outline: none;
+    border-color: var(--cesped);
+}
+
+#campoTituloAnuncio,
+#campoMensajeAnuncio,
+#botonAnadirAnuncio {
+    grid-column: 1 / 3;
+}
+
+#botonAnadirAnuncio {
+    width: 100%;
+}
+
+.form-anuncio-fijar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 0 6px;
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--texto-2);
+}
+
+.form-anuncio-fijar input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--cesped);
+}
+
+.fila-anuncio {
+    padding: 12px;
+    border-radius: var(--radio-s);
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-left-width: 4px;
+}
+
+.fila-anuncio-info       { border-left-color: var(--cesped); }
+.fila-anuncio-importante { border-left-color: var(--alerta); }
+.fila-anuncio-urgente    { border-left-color: var(--error); }
+
+.fila-anuncio.oculto {
+    opacity: .6;
+}
+
+.fila-anuncio-cabecera {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.etiqueta-anuncio,
+.etiqueta-fijado {
+    padding: 2px 8px;
+    border-radius: 99px;
+
+    font-size: .66rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+.etiqueta-anuncio-info       { background: var(--exito-suave);  color: var(--exito); }
+.etiqueta-anuncio-importante { background: var(--alerta-suave); color: var(--alerta); }
+.etiqueta-anuncio-urgente    { background: var(--error-suave);  color: var(--error); }
+
+.etiqueta-fijado {
+    background: var(--superficie-2);
+    color: var(--texto-2);
+}
+
+.fila-anuncio-fecha {
+    margin-left: auto;
+    font-size: .72rem;
+    color: var(--texto-3);
+}
+
+.fila-anuncio-titulo {
+    margin: 8px 0 0;
+    font-size: .98rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.fila-anuncio-mensaje {
+    margin: 4px 0 0;
+    font-size: .88rem;
+    line-height: 1.45;
+    color: var(--texto-2);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.fila-anuncio-acciones {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 18px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--borde);
+}
+
+.fila-anuncio-acciones .boton-borrar {
+    margin-left: 4px;
+}
+
+/* Hueco con el ancho de la papelera en las multas automáticas (no se borran) */
+.boton-borrar-vacio {
+    pointer-events: none;
+}

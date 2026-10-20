@@ -62,6 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
     montarOrden();
     montarFicha();
     montarTirarParaActualizar();
+    montarTablon();
+    montarEstadisticas();
 
     $("#botonRecargar").addEventListener("click", () => cargarDatos(true));
 
@@ -306,6 +308,53 @@ function leerMultasManualesWeb() {
 
 
 /*
+ * Multas automáticas (jornadas sin pagar): una por cada importe
+ * de la hoja "Multas", con su estado en "Multas pagadas".
+ */
+function leerMultasAutomaticasWeb() {
+
+    const multas = (estado.datos && estado.datos.multas) || [];
+    const pagadas = (estado.datos && estado.datos.multasPagadas) || [];
+
+    const cabecera = multas[0] || [];
+    const cabeceraPagadas = pagadas[0] || [];
+    const lista = [];
+
+    for (let i = 1; i < multas.length; i++) {
+
+        const jornada = String(multas[i][0]);
+        const filaPagada = pagadas.find((f) => String(f[0]) === jornada);
+
+        for (let c = 1; c < cabecera.length; c++) {
+
+            const importe = aNumero(multas[i][c]);
+
+            if (importe <= 0 || !cabecera[c]) {
+                continue;
+            }
+
+            const colPagada = cabeceraPagadas.indexOf(cabecera[c]);
+
+            lista.push({
+                jugador: String(cabecera[c]).trim(),
+                importe,
+                jornada,
+                motivo: "Multa automática jornadas",
+                etiqueta: "J" + jornada,
+                pagada: !!filaPagada && colPagada > -1
+                    && String(filaPagada[colPagada]).trim() === "✓"
+            });
+
+        }
+
+    }
+
+    return lista;
+
+}
+
+
+/*
  * Suma las multas de un jugador jornada a jornada, separando
  * lo que ya ha pagado de lo que todavía debe.
  */
@@ -487,8 +536,10 @@ function pintarTodo() {
     estado.jugadores = leerJugadores();
 
     pintarResumen();
+    pintarTablon();
     pintarMultasManualesWeb();
     pintarJugadores();
+    pintarEstadisticas();
     pintarSelectorJornadas();
 
     if (estado.jornadaActiva) {
@@ -595,7 +646,8 @@ function pintarMultasManualesWeb() {
     const bloque = $("#bloqueMultasManuales");
     const lista = $("#listaMultasManualesWeb");
 
-    const todas = leerMultasManualesWeb();
+    /* Manuales (de más antigua a más nueva) y automáticas (por jornada). */
+    const todas = leerMultasManualesWeb().concat(leerMultasAutomaticasWeb());
 
     if (!todas.length) {
         bloque.hidden = true;
@@ -623,7 +675,7 @@ function filaMultaManualWeb(multa) {
                 <span class="fila-nombre">${escapar(multa.jugador)}</span>
                 <span class="fila-sub">
                     ${multa.motivo ? escapar(multa.motivo) : "Multa"}
-                    ${multa.fecha ? " · " + escapar(multa.fecha.split(" ")[0]) : ""}
+                    ${multa.etiqueta ? " · " + escapar(multa.etiqueta) : (multa.fecha ? " · " + escapar(multa.fecha.split(" ")[0]) : "")}
                 </span>
             </span>
 
@@ -1083,6 +1135,7 @@ function abrirFicha(nombre) {
 function fichaMultasManuales(nombre) {
 
     const multas = leerMultasManualesWeb()
+        .concat(leerMultasAutomaticasWeb())
         .filter((m) => m.jugador === nombre)
         .sort((a, b) => Number(a.pagada) - Number(b.pagada));
 
@@ -1098,7 +1151,7 @@ function fichaMultasManuales(nombre) {
                 <div class="sheet-multa">
                     <span class="sheet-multa-texto">
                         <b>${m.motivo ? escapar(m.motivo) : "Multa"}</b>
-                        <small>${escapar(m.fecha.split(" ")[0])}</small>
+                        <small>${escapar(m.etiqueta || m.fecha.split(" ")[0])}</small>
                     </span>
                     <span class="importe-${m.pagada ? "ok" : "deuda"}">${euros(m.importe)}</span>
                     <span class="distintivo ${m.pagada ? "distintivo-ok" : "distintivo-no"}">
@@ -1129,7 +1182,8 @@ function cerrarFicha() {
 const TITULOS = {
     resumen: "Resumen",
     jugadores: "Jugadores",
-    jornadas: "Jornadas"
+    jornadas: "Jornadas",
+    estadisticas: "Estadísticas"
 };
 
 
@@ -1171,7 +1225,791 @@ function abrirVista(nombre) {
 
     $("#tituloVista").textContent = TITULOS[nombre] || "";
 
+    if (nombre === "estadisticas") {
+        pintarGrafica();
+    }
+
     window.scrollTo(0, 0);
+
+}
+
+
+/* =========================================================
+   TABLÓN DE ANUNCIOS
+========================================================= */
+
+const CLAVE_ANUNCIOS_VISTOS = "fdj-anuncios-vistos";
+const ANUNCIOS_VISIBLES = 3;
+
+const ICONOS_ANUNCIO = {
+    info: "bi-info-circle-fill",
+    importante: "bi-exclamation-circle-fill",
+    urgente: "bi-exclamation-triangle-fill"
+};
+
+const ETIQUETAS_TIPO_ANUNCIO = {
+    info: "Información",
+    importante: "Importante",
+    urgente: "Urgente"
+};
+
+let tablonExpandido = false;
+
+
+function leerAnunciosVistos() {
+
+    try {
+        return JSON.parse(localStorage.getItem(CLAVE_ANUNCIOS_VISTOS) || "[]");
+    } catch (error) {
+        return [];
+    }
+
+}
+
+
+function guardarAnuncioVisto(id) {
+
+    try {
+        const vistos = leerAnunciosVistos();
+
+        if (!vistos.includes(id)) {
+            vistos.push(id);
+            localStorage.setItem(CLAVE_ANUNCIOS_VISTOS, JSON.stringify(vistos.slice(-100)));
+        }
+    } catch (error) {
+        /* Sin almacenamiento: el anuncio simplemente volverá a salir. */
+    }
+
+}
+
+
+/* Anuncios visibles: primero los fijados, luego los más nuevos. */
+function leerAnuncios() {
+
+    const filas = ((estado.datos && estado.datos.anuncios) || []).slice(1);
+
+    const lista = filas
+        .filter((f) => f[0] && String(f[6]).trim() === "✓")
+        .map((f, orden) => ({
+            id: String(f[0]),
+            fecha: String(f[1] || ""),
+            titulo: String(f[2] || ""),
+            mensaje: String(f[3] || ""),
+            tipo: ICONOS_ANUNCIO[f[4]] ? f[4] : "info",
+            fijado: String(f[5]).trim() === "✓",
+            orden
+        }));
+
+    /* Los que se pueden descartar y ya se descartaron, fuera. */
+    const vistos = leerAnunciosVistos();
+
+    return lista
+        .filter((a) => a.fijado || a.tipo === "urgente" || !vistos.includes(a.id))
+        .sort((a, b) => (Number(b.fijado) - Number(a.fijado)) || (b.orden - a.orden));
+
+}
+
+
+function pintarTablon() {
+
+    const caja = $("#tablon");
+    const anuncios = leerAnuncios();
+
+    if (!anuncios.length) {
+        caja.hidden = true;
+        caja.innerHTML = "";
+        return;
+    }
+
+    const mostrados = tablonExpandido ? anuncios : anuncios.slice(0, ANUNCIOS_VISIBLES);
+    const restantes = anuncios.length - ANUNCIOS_VISIBLES;
+
+    caja.hidden = false;
+
+    caja.innerHTML = `
+        <div class="tablon-cabecera">
+            <i class="bi bi-megaphone-fill"></i>
+            <h2>Tablón de anuncios</h2>
+        </div>
+
+        ${mostrados.map(tarjetaAnuncio).join("")}
+
+        ${restantes > 0 ? `
+            <button type="button" class="tablon-mas" data-mas>
+                ${tablonExpandido ? "Ver menos" : `Ver ${restantes} más`}
+                <i class="bi bi-chevron-${tablonExpandido ? "up" : "down"}"></i>
+            </button>
+        ` : ""}
+    `;
+
+}
+
+
+function tarjetaAnuncio(a) {
+
+    const descartable = !a.fijado && a.tipo !== "urgente";
+    const dia = a.fecha.split(" ")[0];
+
+    return `
+        <article class="anuncio anuncio-${a.tipo}">
+
+            <i class="bi ${ICONOS_ANUNCIO[a.tipo]} anuncio-icono" aria-hidden="true"></i>
+
+            <div class="anuncio-cuerpo">
+
+                <div class="anuncio-meta">
+                    <span class="anuncio-tipo">${ETIQUETAS_TIPO_ANUNCIO[a.tipo]}</span>
+                    ${a.fijado ? '<span class="anuncio-fijado"><i class="bi bi-pin-angle-fill"></i> Fijado</span>' : ""}
+                    ${dia ? `<span class="anuncio-fecha">${escapar(dia)}</span>` : ""}
+                </div>
+
+                ${a.titulo ? `<h3 class="anuncio-titulo">${escapar(a.titulo)}</h3>` : ""}
+                ${a.mensaje ? `<p class="anuncio-texto">${escapar(a.mensaje)}</p>` : ""}
+
+            </div>
+
+            ${descartable ? `
+                <button type="button"
+                        class="anuncio-cerrar"
+                        data-cerrar="${escapar(a.id)}"
+                        aria-label="Ocultar este anuncio">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            ` : ""}
+
+        </article>
+    `;
+
+}
+
+
+function montarTablon() {
+
+    $("#tablon").addEventListener("click", (evento) => {
+
+        const cerrar = evento.target.closest("[data-cerrar]");
+
+        if (cerrar) {
+            guardarAnuncioVisto(cerrar.dataset.cerrar);
+            pintarTablon();
+            return;
+        }
+
+        if (evento.target.closest("[data-mas]")) {
+            tablonExpandido = !tablonExpandido;
+            pintarTablon();
+        }
+
+    });
+
+}
+
+
+/* =========================================================
+   ESTADÍSTICAS
+========================================================= */
+
+const MAX_RESALTADOS = 4;
+
+estado.statsSel = [];
+estado.statsIdx = null;
+estado.stats = null;
+
+
+function leerPosicion(valor) {
+
+    const n = parseInt(String(valor === undefined || valor === null ? "" : valor).replace(/[^\d]/g, ""), 10);
+
+    return n > 0 ? n : 0;
+
+}
+
+
+/*
+ * Calcula todo a partir de la hoja "Jornadas":
+ * puntos acumulados, puesto tras cada jornada, medias, rachas…
+ * Devuelve null si todavía no se ha jugado ninguna jornada.
+ */
+function calcularEstadisticas() {
+
+    const filas = (estado.datos && estado.datos.jornadas) || [];
+
+    if (filas.length < 2) {
+        return null;
+    }
+
+    const cabecera = filas[0];
+    const columnas = [];
+
+    for (let c = 1; c < cabecera.length; c++) {
+        const nombre = String(cabecera[c] || "").trim();
+        if (nombre) {
+            columnas.push({ nombre, col: c });
+        }
+    }
+
+    const N = columnas.length;
+
+    if (N < 2) {
+        return null;
+    }
+
+    const jugadas = [];
+
+    for (let r = 1; r < filas.length; r++) {
+
+        const fila = filas[r];
+        const numero = parseInt(String(fila[0]).replace(/[^\d]/g, ""), 10);
+        const pos = columnas.map((c) => leerPosicion(fila[c.col]));
+
+        if (numero && pos.some((p) => p > 0)) {
+            jugadas.push({ numero, pos });
+        }
+
+    }
+
+    if (!jugadas.length) {
+        return null;
+    }
+
+    const jugadores = columnas.map((c) => ({
+        nombre: c.nombre,
+        puntos: 0,
+        acumulado: [],
+        puestos: [],
+        victorias: 0,
+        ultimos: 0,
+        posiciones: [],
+        mediaPos: 0,
+        regularidad: 0
+    }));
+
+    const victoriasAcum = jugadores.map(() => 0);
+
+    jugadas.forEach((j, k) => {
+
+        jugadores.forEach((p, i) => {
+
+            const pos = j.pos[i];
+
+            if (pos >= 1 && pos <= N) {
+                p.puntos += N - pos + 1;
+                p.posiciones.push(pos);
+                if (pos === 1) { p.victorias++; victoriasAcum[i]++; }
+                if (pos === N) { p.ultimos++; }
+            }
+
+            p.acumulado.push(p.puntos);
+
+        });
+
+        /* Puesto tras esta jornada: puntos, luego victorias, luego nombre. */
+        const orden = jugadores
+            .map((p, i) => ({ i, puntos: p.acumulado[k], vic: victoriasAcum[i] }))
+            .sort((a, b) => (b.puntos - a.puntos) || (b.vic - a.vic) || (a.i - b.i));
+
+        orden.forEach((o, lugar) => jugadores[o.i].puestos.push(lugar + 1));
+
+    });
+
+    jugadores.forEach((p) => {
+
+        const n = p.posiciones.length;
+
+        if (n) {
+            p.mediaPos = p.posiciones.reduce((a, b) => a + b, 0) / n;
+            p.regularidad = Math.sqrt(
+                p.posiciones.reduce((a, b) => a + Math.pow(b - p.mediaPos, 2), 0) / n
+            );
+        }
+
+    });
+
+    const ultima = jugadas.length - 1;
+
+    jugadores.forEach((p) => {
+        p.puesto = p.puestos[ultima];
+        p.cambio = ultima > 0 ? p.puestos[ultima - 1] - p.puestos[ultima] : 0;
+    });
+
+    const clasificacion = jugadores.slice().sort((a, b) => a.puesto - b.puesto);
+
+    return {
+        N,
+        jugadas,
+        jugadores,
+        clasificacion,
+        numeros: jugadas.map((j) => j.numero)
+    };
+
+}
+
+
+function pintarEstadisticas() {
+
+    const stats = calcularEstadisticas();
+    estado.stats = stats;
+
+    const vacio = $("#statsVacio");
+    const contenido = $("#statsContenido");
+
+    if (!stats) {
+
+        vacio.hidden = false;
+        vacio.innerHTML = plantillaVacio(
+            "bi-bar-chart-line",
+            "Aún no hay estadísticas",
+            "Aparecerán en cuanto se registre la primera jornada."
+        );
+        contenido.hidden = true;
+        return;
+
+    }
+
+    vacio.hidden = true;
+    contenido.hidden = false;
+
+    /* Selección inicial (o si cambian los jugadores): los 3 primeros. */
+    const nombres = stats.jugadores.map((p) => p.nombre);
+
+    estado.statsSel = estado.statsSel.filter((n) => nombres.includes(n));
+
+    if (!estado.statsSel.length) {
+        estado.statsSel = stats.clasificacion.slice(0, 3).map((p) => p.nombre);
+    }
+
+    if (estado.statsIdx === null || estado.statsIdx >= stats.jugadas.length) {
+        estado.statsIdx = stats.jugadas.length - 1;
+    }
+
+    pintarClasificacion(stats);
+    pintarChipsGrafica();
+    pintarGrafica();
+    pintarStatsExtra(stats);
+
+}
+
+
+function decimal(n) {
+
+    return n.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+}
+
+
+function pintarClasificacion(stats) {
+
+    $("#listaClasificacion").innerHTML = stats.clasificacion.map((p) => {
+
+        const cambio = p.cambio > 0
+            ? `<span class="cambio cambio-sube"><i class="bi bi-caret-up-fill"></i>${p.cambio}</span>`
+            : p.cambio < 0
+                ? `<span class="cambio cambio-baja"><i class="bi bi-caret-down-fill"></i>${-p.cambio}</span>`
+                : `<span class="cambio cambio-igual">=</span>`;
+
+        const detalle = [
+            "media " + (p.posiciones.length ? decimal(p.mediaPos) + "º" : "—"),
+            p.victorias + (p.victorias === 1 ? " victoria" : " victorias")
+        ].join(" · ");
+
+        return `
+            <div class="fila fila-clasif">
+
+                <span class="puesto puesto-${p.puesto <= 3 ? p.puesto : "x"}">${p.puesto}</span>
+
+                ${avatar(p.nombre)}
+
+                <span class="fila-datos">
+                    <span class="fila-nombre">${escapar(p.nombre)}</span>
+                    <span class="fila-sub">${detalle}</span>
+                </span>
+
+                <span class="fila-cifra">
+                    <span class="fila-importe">${p.puntos} pts</span>
+                    ${cambio}
+                </span>
+
+            </div>
+        `;
+
+    }).join("");
+
+}
+
+
+function colorSerie(nombre) {
+
+    const i = estado.statsSel.indexOf(nombre);
+
+    return i === -1 ? null : "var(--serie-" + (i + 1) + ")";
+
+}
+
+
+function pintarChipsGrafica() {
+
+    if (!estado.stats) {
+        return;
+    }
+
+    $("#graficaChips").innerHTML = estado.stats.clasificacion.map((p) => {
+
+        const color = colorSerie(p.nombre);
+
+        return `
+            <button type="button"
+                    class="grafica-chip ${color ? "grafica-chip-on" : ""}"
+                    data-serie="${escapar(p.nombre)}"
+                    aria-pressed="${color ? "true" : "false"}">
+                <span class="grafica-punto" style="${color ? "background:" + color : ""}"></span>
+                ${escapar(p.nombre)}
+            </button>
+        `;
+
+    }).join("");
+
+}
+
+
+function montarEstadisticas() {
+
+    $("#graficaChips").addEventListener("click", (evento) => {
+
+        const boton = evento.target.closest("[data-serie]");
+
+        if (!boton) {
+            return;
+        }
+
+        const nombre = boton.dataset.serie;
+        const sel = estado.statsSel;
+        const pos = sel.indexOf(nombre);
+
+        if (pos !== -1) {
+            if (sel.length > 1) {
+                sel.splice(pos, 1);
+            }
+        } else {
+            sel.push(nombre);
+            if (sel.length > MAX_RESALTADOS) {
+                sel.shift();
+            }
+        }
+
+        pintarChipsGrafica();
+        pintarGrafica();
+
+    });
+
+    const lienzo = $("#graficaLienzo");
+
+    const mover = (evento) => {
+
+        if (!estado.stats || !lienzo.dataset.x0) {
+            return;
+        }
+
+        const caja = lienzo.getBoundingClientRect();
+        const x0 = parseFloat(lienzo.dataset.x0);
+        const paso = parseFloat(lienzo.dataset.paso);
+        const n = estado.stats.jugadas.length;
+
+        let idx = n === 1 ? 0 : Math.round((evento.clientX - caja.left - x0) / paso);
+        idx = Math.max(0, Math.min(n - 1, idx));
+
+        if (idx !== estado.statsIdx) {
+            estado.statsIdx = idx;
+            pintarGrafica();
+        }
+
+    };
+
+    lienzo.addEventListener("pointerdown", mover);
+    lienzo.addEventListener("pointermove", mover);
+
+    /* Redibujar si cambia el ancho (girar el móvil, redimensionar). */
+    let anterior = 0;
+
+    window.addEventListener("resize", () => {
+
+        const ancho = lienzo.clientWidth;
+
+        if (ancho && ancho !== anterior) {
+            anterior = ancho;
+            pintarGrafica();
+        }
+
+    });
+
+}
+
+
+/*
+ * Gráfica de evolución: puesto (1 arriba) tras cada jornada.
+ * SVG a mano, al ancho real del contenedor, para que el texto
+ * se vea igual de grande en cualquier pantalla.
+ */
+function pintarGrafica() {
+
+    const stats = estado.stats;
+    const lienzo = $("#graficaLienzo");
+
+    if (!stats) {
+        return;
+    }
+
+    const ancho = Math.floor(lienzo.clientWidth);
+
+    if (!ancho) {
+        return;   /* La pestaña está oculta: se dibuja al abrirla. */
+    }
+
+    const N = stats.N;
+    const n = stats.jugadas.length;
+
+    const mi = 30, md = 14, ms = 14, mb = 26;
+    const alto = Math.max(230, Math.min(420, N * 24 + ms + mb));
+    const x0 = mi;
+    const anchoUtil = ancho - mi - md;
+    const paso = n > 1 ? anchoUtil / (n - 1) : 0;
+    const dy = (alto - ms - mb) / (N - 1);
+
+    const X = (k) => n > 1 ? x0 + k * paso : x0 + anchoUtil / 2;
+    const Y = (puesto) => ms + (puesto - 1) * dy;
+
+    const partes = [];
+
+    /* Rejilla y eje Y (puestos) */
+    const saltoY = N > 12 ? 2 : 1;
+
+    for (let r = 1; r <= N; r++) {
+
+        if ((r - 1) % saltoY !== 0 && r !== N) {
+            continue;
+        }
+
+        partes.push(`<line class="g-rejilla" x1="${x0}" x2="${ancho - md}" y1="${Y(r)}" y2="${Y(r)}"/>`);
+        partes.push(`<text class="g-eje" x="${x0 - 8}" y="${Y(r) + 4}" text-anchor="end">${r}º</text>`);
+
+    }
+
+    /* Eje X (jornadas) */
+    const minSep = 30;
+    const saltoX = paso ? Math.max(1, Math.ceil(minSep / paso)) : 1;
+
+    stats.numeros.forEach((num, k) => {
+
+        if (k % saltoX !== 0 && k !== n - 1) {
+            return;
+        }
+
+        /* Evita que la última etiqueta pise a la anterior. */
+        if (k === n - 1 && k % saltoX !== 0 && paso && (k % saltoX) * paso < minSep) {
+            return;
+        }
+
+        partes.push(`<text class="g-eje" x="${X(k)}" y="${alto - 8}" text-anchor="middle">${num}</text>`);
+
+    });
+
+    /* Línea vertical de la jornada seleccionada */
+    const idx = estado.statsIdx;
+
+    partes.push(`<line class="g-cursor" x1="${X(idx)}" x2="${X(idx)}" y1="${ms - 4}" y2="${alto - mb + 2}"/>`);
+
+    const trazo = (p) => p.puestos
+        .map((r, k) => (k ? "L" : "M") + X(k).toFixed(1) + " " + Y(r).toFixed(1))
+        .join(" ");
+
+    /* Primero los no resaltados (de fondo), luego los resaltados. */
+    stats.jugadores
+        .filter((p) => !estado.statsSel.includes(p.nombre))
+        .forEach((p) => {
+            partes.push(`<path class="g-linea-muda" d="${trazo(p)}"/>`);
+        });
+
+    estado.statsSel.forEach((nombre) => {
+
+        const p = stats.jugadores.find((j) => j.nombre === nombre);
+
+        if (!p) {
+            return;
+        }
+
+        const color = colorSerie(nombre);
+
+        partes.push(`<path class="g-linea" style="stroke:${color}" d="${trazo(p)}"/>`);
+
+        /* Punto en la jornada seleccionada */
+        partes.push(
+            `<circle class="g-punto" style="fill:${color}" cx="${X(idx)}" cy="${Y(p.puestos[idx])}" r="5"/>`
+        );
+
+    });
+
+    const resumenAria = "Gráfica de evolución de puestos. " + estado.statsSel.map((nombre) => {
+        const p = stats.jugadores.find((j) => j.nombre === nombre);
+        return p ? `${p.nombre} va ${p.puesto}º` : "";
+    }).join(", ");
+
+    lienzo.dataset.x0 = x0;
+    lienzo.dataset.paso = paso;
+
+    lienzo.innerHTML = `
+        <svg width="${ancho}" height="${alto}" viewBox="0 0 ${ancho} ${alto}" role="img" aria-label="${escapar(resumenAria)}">
+            ${partes.join("")}
+        </svg>
+    `;
+
+    /* Lectura de la jornada seleccionada */
+    const lectura = estado.statsSel.map((nombre) => {
+
+        const p = stats.jugadores.find((j) => j.nombre === nombre);
+
+        if (!p) {
+            return "";
+        }
+
+        return `
+            <span class="lectura-item">
+                <span class="grafica-punto" style="background:${colorSerie(nombre)}"></span>
+                <b>${escapar(p.nombre)}</b> ${p.puestos[idx]}º · ${p.acumulado[idx]} pts
+            </span>
+        `;
+
+    }).join("");
+
+    $("#graficaLectura").innerHTML =
+        `<span class="lectura-jornada">Jornada ${stats.numeros[idx]}</span>${lectura}`;
+
+}
+
+
+function pintarStatsExtra(stats) {
+
+    const { jugadores, jugadas } = stats;
+
+    const mejorPor = (lista, clave, mayor = true) => {
+        let mejor = null;
+        lista.forEach((p) => {
+            if (mejor === null || (mayor ? clave(p) > clave(mejor) : clave(p) < clave(mejor))) {
+                mejor = p;
+            }
+        });
+        return mejor;
+    };
+
+    const tarjetas = [];
+
+    const lider = stats.clasificacion[0];
+
+    tarjetas.push({
+        icono: "bi-trophy-fill",
+        etiqueta: "Líder",
+        valor: lider.nombre,
+        pie: lider.puntos + " puntos"
+    });
+
+    const masVic = mejorPor(jugadores, (p) => p.victorias);
+
+    if (masVic.victorias > 0) {
+        tarjetas.push({
+            icono: "bi-award-fill",
+            etiqueta: "Más victorias",
+            valor: masVic.nombre,
+            pie: masVic.victorias + (masVic.victorias === 1 ? " jornada ganada" : " jornadas ganadas")
+        });
+    }
+
+    const masUlt = mejorPor(jugadores, (p) => p.ultimos);
+
+    if (masUlt.ultimos > 0) {
+        tarjetas.push({
+            icono: "bi-emoji-frown-fill",
+            etiqueta: "Más veces último",
+            valor: masUlt.nombre,
+            pie: masUlt.ultimos + (masUlt.ultimos === 1 ? " vez último" : " veces último")
+        });
+    }
+
+    const conDatos = jugadores.filter((p) => p.posiciones.length);
+
+    if (conDatos.length) {
+
+        const mejorMedia = mejorPor(conDatos, (p) => p.mediaPos, false);
+
+        tarjetas.push({
+            icono: "bi-graph-up-arrow",
+            etiqueta: "Mejor media",
+            valor: mejorMedia.nombre,
+            pie: "puesto medio " + decimal(mejorMedia.mediaPos) + "º"
+        });
+
+        if (jugadas.length >= 3) {
+
+            const regular = mejorPor(conDatos, (p) => p.regularidad, false);
+
+            tarjetas.push({
+                icono: "bi-bullseye",
+                etiqueta: "Más regular",
+                valor: regular.nombre,
+                pie: "variación de " + decimal(regular.regularidad) + " puestos"
+            });
+
+        }
+
+    }
+
+    const sube = mejorPor(jugadores, (p) => p.cambio);
+
+    if (sube.cambio > 0) {
+        tarjetas.push({
+            icono: "bi-rocket-takeoff-fill",
+            etiqueta: "Mayor subida",
+            valor: sube.nombre,
+            pie: "+" + sube.cambio + " puestos en la última jornada"
+        });
+    }
+
+    /* Mejor racha: jornadas seguidas entre los 3 primeros. */
+    let rachaMax = 0;
+    let rachaDe = null;
+
+    jugadores.forEach((p) => {
+
+        let actual = 0;
+
+        jugadas.forEach((j, k) => {
+
+            const pos = j.pos[jugadores.indexOf(p)];
+
+            actual = pos >= 1 && pos <= 3 ? actual + 1 : 0;
+
+            if (actual > rachaMax) {
+                rachaMax = actual;
+                rachaDe = p;
+            }
+
+        });
+
+    });
+
+    if (rachaMax >= 2) {
+        tarjetas.push({
+            icono: "bi-fire",
+            etiqueta: "Mejor racha",
+            valor: rachaDe.nombre,
+            pie: rachaMax + " jornadas seguidas en el podio"
+        });
+    }
+
+    $("#statsExtra").innerHTML = tarjetas.map((t) => `
+        <article class="dato dato-stat">
+            <span class="dato-etiqueta"><i class="bi ${t.icono}"></i> ${t.etiqueta}</span>
+            <strong class="dato-valor dato-valor-texto">${escapar(t.valor)}</strong>
+            <span class="dato-pie">${escapar(t.pie)}</span>
+        </article>
+    `).join("");
 
 }
 
